@@ -342,13 +342,13 @@
   let az0 = 35, az1 = 205, elMax = 72, T = 480;
   let series = null; // { t[], az[], el[], x[], y[], xr[], yr[], px[], py[], pt[] }
 
-  // using this to fake the azimiuth and elevation, so for now the azimuth is a straight line from end to end and elevation is a half sine wave
+  // fake az/el for now: azimuth is a straight line end to end, elevation a half sine wave
   function azAt(t) { return az0 + (az1 - az0) * (t / T); }
   function elAt(t) { return Math.max(0, elMax * Math.sin(Math.PI * Math.min(Math.max(t / T, 0), 1))); }
 
   function azElToXY(azDeg, elDeg) {
     const az = azDeg * Math.PI / 180, el = elDeg * Math.PI / 180;
-    const x = Math.atan2(-Math.cos(az), Math.tan(el)); //this will convert to x,y in radians, swap sin and cos if we want to algin the primary motor with east west instead
+    const x = Math.atan2(-Math.cos(az), Math.tan(el)); // to x,y in radians; swap sin and cos to align the primary motor with east-west instead
     const y = Math.asin(Math.sin(az) * Math.cos(el));
     return [clamp(x * 180 / Math.PI, -90, 90), clamp(y * 180 / Math.PI, -90, 90)];
   }
@@ -361,7 +361,7 @@
     return [(xp - xm) / (2 * H), (yp - ym) / (2 * H)];
   }
 
-  // current model based on my random estimates
+  // rough current model, estimates only
   // current held would be 6-7 running, while the max would be around 17 (safe to assume)
   // also this is based on if we have an 8kg weight around 1 meter from the axis held at 0
   const I_HOLD = 6.5, K_V = 0.2, I_CAP = 17, VOLTS = 48;
@@ -569,17 +569,17 @@
     const m = Math.floor(t / 60), s = t % 60;
     return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   }
-  // ILLUSTRATION ONLY: the real station sends 0x87 relative steps + 0x83 START (see gimbal.py), not speed frames
+  // Illustration only: the real station sends 0x87 relative steps + 0x83 START (see gimbal.py), not speed frames
   const COUNTS_PER_REV = 524288.0;   // eRob output shaft (bench-proven). Was 131072.
   
   function generateRealCanFrame(nodeId, rateDegS) { 
     // tx_id is 0x640 + NodeID
     const canId = (0x640 + nodeId).toString(16).toUpperCase();
     
-    // Convert deg/s to counts/s and round to nearest integer
+    // deg/s to counts/s, rounded
     let counts = Math.round((rateDegS / 360.0) * COUNTS_PER_REV);
     
-    // Convert to 32-bit signed hex (Two's complement for negative values)
+    // 32-bit signed hex (two's complement for negatives)
     if (counts < 0) {
       counts = 0xFFFFFFFF + counts + 1;
     }
@@ -614,20 +614,20 @@
     updateChartMarkers(tt, s);
     scrub.value = tt;
     document.getElementById('lblTime').textContent = fmt(tt);
-    // --- REAL CAN BUS TERMINAL LOGIC ---
+    // --- CAN terminal output ---
     const terminal = document.getElementById('canTerminal');
     
     const cmdX = generateRealCanFrame(1, s.xr);
     const cmdY = generateRealCanFrame(2, s.yr);
     
-    // Format it like a Linux terminal with comments for readability
+    // format like a Linux terminal
     const logLine = (cmd, axisName, rate) => {
         const dir = rate >= 0 ? "+" : "-";
         return `<span style="color:var(--muted)">(${fmt(tt)})</span> <span style="color:var(--accent2)">${cmd}</span> <span style="color:var(--muted)"># ${axisName} VEL ${dir}${Math.abs(rate).toFixed(2)}&deg;/s</span><br>`;
     };
 
     if (playing) {
-        // Only log at exactly 10Hz to match config.py control loop
+        // log at 10 Hz to match the config.py control loop
         if (Math.abs((tt * 10) % 1) < 0.05) {
             terminal.innerHTML += logLine(cmdX, 'X_AXIS', s.xr);
             terminal.innerHTML += logLine(cmdY, 'Y_AXIS', s.yr);

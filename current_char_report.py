@@ -5,14 +5,14 @@ current_char_report.py - figures, LaTeX table and dashboard from one current_cha
     python3 current_char_report.py data/current_char/<run> --report-dir urex_report
     python3 current_char_report.py <run> --report-dir urex_report --fill-report urex_report/report.tex [--add-trace-figure]
 
-Writes into the run folder (PDF vector + PNG 200 dpi each):
+Writes into the run folder (each figure as vector PDF + 200 dpi PNG):
     current_map_total  current_map_axes  current_vs_angle  current_worst_trace  current_model_fit
     current_dashboard.html (self-contained, no internet)   current_summary.tex   report_fill.md
 and copies into the report folder:
     figures/current_*.pdf     data/current_summary.tex
     data/current_char/{summary.json, points.csv, plan.json, events.jsonl, samples_thinned.csv (1 in 10)}
---fill-report writes the Section 4.3 / Appendix C text into that .tex file (only the placeholders named in
-the task; numbers only from the run). A SIMULATED run is labelled SIMULATED everywhere.
+--fill-report writes the Section 4.3 / Appendix C text into that .tex file (just the placeholders for
+those sections, numbers taken from the run). A simulated run is labelled SIMULATED everywhere.
 """
 import argparse
 import csv
@@ -68,7 +68,7 @@ def deg(v, n=0):
 
 # ================================================================================== grids
 def grid_arrays(P):
-    """-> xs, ys (sorted unique), and matrices [iy, ix] of peak |I_X|+|I_Y|, peak |I_X|, peak |I_Y|, and a skipped mask."""
+    """Returns xs, ys (sorted unique), and matrices [iy, ix] of peak |I_X|+|I_Y|, peak |I_X|, peak |I_Y|, and a skipped mask."""
     xs = sorted(set(p["x_deg"] for p in P))
     ys = sorted(set(p["y_deg"] for p in P))
     nan = np.full((len(ys), len(xs)), np.nan)
@@ -389,7 +389,7 @@ def fig_worst_trace(plt, run_dir, S, sim, info):
             head.append(f"diagonal {dp['itotal_a']:.1f} A total")
     else:
         ax.text(0.5, 0.5, "not measured", ha="center", va="center", transform=ax.transAxes)
-    # (c) thermal hold, temperature on a second axis (as requested)
+    # (c) thermal hold, temperature on a second axis
     ax = axs[2]
     m = np.array(S["phase"]) == "4c"
     if m.any():
@@ -495,7 +495,7 @@ def fig_model(plt, run_dir, S, sim, info):
 
 # ================================================================================== LaTeX table
 def _a(v, dash="--"):
-    """|v| to 2 decimals; an axis not read in that sample (breakaway: moving axis only) -> dash."""
+    """|v| to 2 decimals; a dash if the axis was not read in that sample (breakaway reads the moving axis only)."""
     return dash if v is None else f"{abs(v):.2f}"
 
 
@@ -717,7 +717,7 @@ def _case_txt(c, axis=None):
 
 
 def _dg(v):
-    """Signed whole degrees, but a plain 0 (no '-0')."""
+    """Signed whole degrees, plain 0 instead of -0."""
     return "0" if round(v) == 0 else f"{v:+.0f}"
 
 

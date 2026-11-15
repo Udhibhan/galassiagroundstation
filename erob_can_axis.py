@@ -1,13 +1,13 @@
 """
-erob_can_axis.py - one gimbal axis = one eRob drive + HOME zero + sign + software limits.
+erob_can_axis.py - one gimbal axis: eRob drive + HOME zero + sign + software limits.
 
-Angles used everywhere above this file are "axis degrees":
+Angles above this file are "axis degrees":
     axis_deg = sign * wrap(raw_deg - home_deg)        0 = dish vertical (HOME)
 Before HOME is set, axis_deg is measured from wherever the axis was at start-up and travel is
-limited to +/- UNHOMED_TRAVEL_DEG (raw encoder reads ~236-240 deg, so the old code's first
-move_to() could swing ~240 deg into the cables).
+limited to +/- UNHOMED_TRAVEL_DEG (raw encoder reads ~236-240 deg, so the old first move_to()
+could swing ~240 deg into the cables).
 
-Motion uses only the bench-proven primitives: configure (motor off) -> enable -> 0x87 relative + 0x83.
+Motion uses only the bench-proven sequence: configure (motor off), enable, 0x87 relative + 0x83.
 """
 import logging
 
@@ -73,7 +73,7 @@ class Axis:
         return self.angle
 
     def prepare(self, speed: float | None = None) -> None:
-        """Motor OFF + configure (proven sequence). Leaves the motor disabled."""
+        """Configure with the motor off (proven sequence). Motor stays disabled."""
         speed = speed or self.cfg.track_speed_deg_s
         self.drive.configure(speed, self.cfg.accel_deg_s2)
         self.enabled, self.profile_speed = False, speed
@@ -89,8 +89,8 @@ class Axis:
             self.enabled = False
 
     def set_speed(self, speed: float, live_only: bool = False) -> None:
-        """Change profile speed. Tries a live write; if the drive refuses it while ON (0x15/0x16),
-        falls back to the proven path: disable -> configure -> enable (brake holds meanwhile)."""
+        """Change profile speed. Tries a live write; if the drive refuses it while on (0x15/0x16),
+        falls back to disable, configure, enable (brake holds meanwhile)."""
         if self.profile_speed is not None and abs(speed - self.profile_speed) < 1e-6:
             return
         try:
@@ -107,7 +107,7 @@ class Axis:
 
     def move_by(self, delta_axis_deg: float) -> bool:
         """Relative move in axis degrees, refusing anything that would leave the limits.
-        Returns False if the drive said 'busy' (0x15: previous move still running)."""
+        Returns False if the drive said busy (0x15, previous move still running)."""
         if self.angle is None:
             self.read()
         target = self.angle + delta_axis_deg

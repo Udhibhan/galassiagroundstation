@@ -1,15 +1,15 @@
 """Receiver input: B205mini (record + monitor, or live decode) or an IQ file.
 
-  record  B205mini -> sc16 recorder (full rate, sidecars) and -> complex out for monitoring
+  record  B205mini to the sc16 recorder (full rate, sidecars) and to a complex out for monitoring
   live    same, recording optional (off by default); the demod is meant to run in full
   file    sc16 (rx_samples_to_file --type short / the recorder) or fc32, as fast as the CPU
           allows (or in real time with realtime=True). With need_time, the rx_time tags of
           the recording (its .json time_tags, else .start, else mtime - duration) are put
           back on the stream so the Doppler pre-comp stays on time.
 
-The output is complex64 at the sample rate, after the optional conjugate (spectrally
-inverted Ku chain). In live modes the radio's clock is set to the host's UTC before
-streaming, so UHD's rx_time tags are UTC.
+Output is complex64 at the sample rate, after the optional conjugate (spectrally inverted
+Ku chain). In live modes the radio's clock is set to the host's UTC before streaming, so
+UHD's rx_time tags are UTC.
 """
 from __future__ import annotations
 

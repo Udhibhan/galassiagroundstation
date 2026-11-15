@@ -1,15 +1,15 @@
 """
 test_job.py - Test mode: press "Run test" and every external part is checked, one step after the other.
 
-    1. link    Pi relay / CAN link answers, both drives found                      (no motion)
-    2. motors  each axis: HOME -> +d -> -d -> HOME  (reached? error, current, time)  MOVES the dish
-    3. sdr     B206mini readings for a few seconds: rate, mean/min/max dBFS, saturation   (receive only)
-    4. gnss    follows the receiver live: connected -> 3D fix -> RTK float -> RTK FIXED (satellite count
-               over time), then averages the RTK FIXED heading -> mount yaw psi
-    5. north   points the RF BEAM at true north, 45 deg elevation (psi from the GNSS heading) and checks it
+  1. link    Pi relay / CAN link answers, both drives found (no motion)
+  2. motors  each axis HOME -> +d -> -d -> HOME, reports reached, error, current, time (moves the dish)
+  3. sdr     B206mini readings for a few seconds: rate, mean/min/max dBFS, saturation (receive only)
+  4. gnss    follows the receiver live (connected, 3D fix, RTK float, RTK FIXED, satellite count over
+             time), then averages the RTK FIXED heading to get the mount yaw psi
+  5. north   points the RF beam at true north, 45 deg elevation (psi from the GNSS heading) and checks it
 
-Runs in its own worker thread and NEVER touches CAN: it only gives the gimbal thread goto targets
-(gimbal.goto) and reads the SDR power meter (receive only), exactly like sun_job.SunSession.
+Runs in its own worker thread and never touches CAN. It only gives the gimbal thread goto targets
+(gimbal.goto) and reads the SDR power meter (receive only), like sun_job.SunSession.
 The page deadman (no heartbeat for 2 s) and STOP stop it like any other goto.
 """
 import copy
@@ -42,10 +42,10 @@ def wrap180(a):
 class TestSession:
     def __init__(self, gimbal, meter_fn, gnss, site_fn, relay_fn):
         self.g = gimbal
-        self.meter_fn = meter_fn             # -> PowerMeter or None
+        self.meter_fn = meter_fn             # returns PowerMeter or None
         self.gnss = gnss
-        self.site_fn = site_fn               # -> (lat, lon, source)
-        self.relay_fn = relay_fn             # -> {"connected": bool, "name": str, "error": str|None, ...}
+        self.site_fn = site_fn               # returns (lat, lon, source)
+        self.relay_fn = relay_fn             # returns {"connected": bool, "name": str, "error": str|None, ...}
         self.cfg = config.TEST
         self.thread = None
         self.cancel = threading.Event()
@@ -57,10 +57,10 @@ class TestSession:
         self._act = None
         self.prog = self._fresh()
 
-    # ------------------------------------------------------------------ state
+    # state
     @staticmethod
     def _fresh(sel=None):
-        """sel = ids that will run; the others stay 'idle' (not selected)."""
+        """sel = ids that will run, the others stay 'idle' (not selected)."""
         return {"state": "idle", "current": None, "msg": "", "t0": None, "t1": None, "selected": list(sel or []),
                 "steps": [{"id": i, "title": t, "state": "pending" if (sel is not None and i in sel) else "idle",
                            "detail": "", "data": {}} for i, t in STEPS]}
@@ -88,12 +88,12 @@ class TestSession:
         if state in ("pass", "warn", "fail", "skip"):
             log.info("Test %s: %s - %s", sid, state, s["detail"])
 
-    # ------------------------------------------------------------------ control
+    # control
     # a test that needs another one's result pulls it in: north needs the GNSS heading
     DEPENDS = {"north": ["gnss"]}
 
     def start(self, only=None):
-        """only = list of step ids to run (None = all). Each one is independent; 'north' also runs 'gnss'."""
+        """only = list of step ids to run (None = all). Each is independent, but 'north' also runs 'gnss'."""
         if self.busy():
             raise RuntimeError("a test is already running")
         ids = [i for i, _ in STEPS]
@@ -119,7 +119,7 @@ class TestSession:
         self.prog.update(state="running", t0=clock.now().isoformat(timespec="seconds"))
         self.thread = threading.Thread(target=self._worker, name="test", daemon=True)
         self.thread.start()
-        # the GNSS receiver is watched from the start, so its search is already on the chart when its step is reached
+        # GNSS receiver is watched from the start so its search is already on the chart when its step is reached
         if "gnss" in sel:
             threading.Thread(target=self._gnss_watch, name="test-gnss", daemon=True).start()
         return "started"
@@ -142,7 +142,7 @@ class TestSession:
             self._check()
             time.sleep(min(0.1, max(0.0, end - time.monotonic())))
 
-    # ------------------------------------------------------------------ worker
+    # worker
     def _worker(self):
         order = [("link", self._link), ("motors", self._motors), ("sdr", self._sdr),
                  ("gnss", self._gnss), ("north", self._north)]
@@ -185,7 +185,7 @@ class TestSession:
             self.prog["t1"] = clock.now().isoformat(timespec="seconds")
 
     def _cleanup(self, why):
-        """Stop a goto in progress (the motors stay ON and holding)."""
+        """Stop a goto in progress (motors stay on and holding)."""
         try:
             if self.g.act is not None:
                 self.g.stop_act("test " + why).result(3)
@@ -196,7 +196,7 @@ class TestSession:
         for sid in sids:
             self._set(sid, "skip", why)
 
-    # ------------------------------------------------------------------ 1. link
+    # 1. link
     def _link(self):
         rel = self.relay_fn()
         snap = self.g.snapshot()
@@ -214,7 +214,7 @@ class TestSession:
             return self._set("link", "warn", f"both drives answer, but bus voltage is only {bus:.1f} V (expected ~48 V)")
         self._set("link", "pass", f"{rel.get('name')}: X and Y answer" + (f", bus {bus:.1f} V" if bus else ""))
 
-    # ------------------------------------------------------------------ 2. motors
+    # 2. motors
     def _wait_holding(self, timeout, what):
         end = time.monotonic() + timeout
         while not (self.g.mode == "on" and self.g.started and self.g.holding):
@@ -226,7 +226,7 @@ class TestSession:
             time.sleep(0.2)
 
     def _goto_wait(self, x, y, label, k):
-        """goto + wait; returns (ok, seconds, peak |current| A of axis k, final (x, y))."""
+        """goto + wait. Returns (ok, seconds, peak |current| A of axis k, final (x, y))."""
         cfg = self.cfg
         t0 = time.monotonic()
         act = self.g.goto(x, y, label).result(5)
@@ -303,7 +303,7 @@ class TestSession:
         self._set("motors", "warn" if warns else "pass",
                   ("; ".join(warns) if warns else f"X and Y moved ±{d:g}° and returned to HOME"))
 
-    # ------------------------------------------------------------------ 3. SDR
+    # 3. SDR
     def _sdr(self):
         cfg = self.cfg
         m = self.meter_fn()
@@ -345,7 +345,7 @@ class TestSession:
             return self._set("sdr", "warn", f"{summary}; very low level: is the LNB bias tee on?")
         self._set("sdr", "pass", summary)
 
-    # ------------------------------------------------------------------ 4. GNSS
+    # 4. GNSS
     @staticmethod
     def _gnss_stage(st):
         if not st.get("connected"):
@@ -357,7 +357,7 @@ class TestSession:
         return 3 if st.get("carr") == 1 else 2
 
     def _gnss_watch(self):
-        """Samples the receiver twice a second for the whole test: stage + satellite count -> chart history."""
+        """Sample the receiver twice a second for the whole test (stage + satellite count) for the chart history."""
         t0 = time.monotonic()
         stop = self._gwatch_stop
         while not stop.is_set():
@@ -408,7 +408,7 @@ class TestSession:
                   f"RTK FIXED {t_fix:.0f} s after pressing Test · {hist[-1][1]} satellites · heading {avg['heading']:.2f}° "
                   f"→ mount yaw ψ = {psi:+.2f}°", heading=avg["heading"], psi=psi, n=avg["n"], pitch=avg.get("pitch"))
 
-    # ------------------------------------------------------------------ 5. north, 45 deg
+    # 5. north, 45 deg
     def _north(self):
         cfg, g = self.cfg, self.g
         if self._step("gnss")["state"] != "pass" or not self._psi:

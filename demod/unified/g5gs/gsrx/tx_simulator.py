@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
-"""
-tx_simulator - pretend to be the NanoCom Link X so the ground chain can be
-tested without a radio. Produces BBFRAMEs (file or UDP), i.e. the shape of
-data gr-dvbs2rx emits.
+"""tx_simulator - pretend to be the NanoCom Link X so the ground chain can be tested
+without a radio. Produces BBFRAMEs (file or UDP), the same shape of data gr-dvbs2rx emits.
 
-  --stack rev1.0  (current Link X)  GSUFTP packets -> GSSE -> BBFRAMEs
+  --stack rev1.0  (current Link X)  GSUFTP packets in GSSE in BBFRAMEs
                   chunk size default 10 000 000 B (GSUFTP manual sec. 4 "~10 MB");
-                  header layout ASSUMED identical to rev 1.2 (undocumented).
-  --stack rev1.2  (later SX)        GSUFTP 50 000 B chunks -> UDP -> IPv4
-                  (fragmented to --mtu) -> GSSE -> BBFRAMEs
+                  header layout assumed identical to rev 1.2 (undocumented).
+  --stack rev1.2  (later SX)        GSUFTP 50 000 B chunks in UDP in IPv4
+                  (fragmented to --mtu) in GSSE in BBFRAMEs
 
   python3 tx_simulator.py --stack rev1.0 --files ./testdata --out-file sim10.bbframes
   python3 gs_rx.py --from-file sim10.bbframes --bbframe-len auto --out ./rx
 
-Failure injection: --drop-frames P, --corrupt P, --repeat N (looping like
-gsuftp-tx), --junk N (pre-lock garbage bytes).
+Failure injection: --drop-frames P, --corrupt P, --repeat N (looping like gsuftp-tx),
+--junk N (pre-lock garbage bytes).
 """
 
 from __future__ import annotations

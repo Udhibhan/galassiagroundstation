@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-app.py - the ground station web UI. TEST STAGE: Manual (latching WASD + Home) and Sun / G/T.
+Ground station web UI. Test stage only: Manual (latching WASD + Home) and Sun / G/T.
+The old full app is in legacy/app_v3_full.py.
 
-SPLIT SETUP: runs on the UBUNTU LAPTOP (radioconda, UHD); the Raspberry Pi only relays CAN (can_relay.py).
-    python3 app.py --pi <pi-ip>                 # DEFAULT: remote CAN via the Pi relay (port 7070)
+Runs on the Ubuntu laptop (radioconda, UHD); the Raspberry Pi only relays CAN (can_relay.py).
+    python3 app.py --pi <pi-ip>                 # default: remote CAN via the Pi relay (port 7070)
     python3 app.py --sim                        # everything simulated (drives, SDR, GNSS), no hardware
     python3 app.py --sim --sim-clock 2026-11-09T09:30:00+08:00
     python3 app.py --iface canutils             # app on the Pi itself (candump/cansend), or socketcan / waveshare
     python3 app.py --pi <pi-ip> --gnss none     # without the heading kit (Sun method 2 only)
 Then open http://localhost:8080 on the laptop.
 
-Standard library HTTP + Server-Sent Events. numpy needed (kinematics); uhd / pyubx2 are optional.
+Plain stdlib HTTP + Server-Sent Events. Needs numpy (kinematics); uhd and pyubx2 are optional.
 """
 import argparse
 import csv
@@ -36,7 +37,7 @@ from test_job import TestSession
 from demod import DemodSession
 from rehearsal import Rehearsal
 
-# DISABLED (test stage): calibration (GNSS poses), auto satellite tracking, orbits
+# Disabled in the test stage (full versions in legacy/app_v3_full.py): calibration, auto satellite tracking, orbits
 # from calibration import Calibration, GnssPoseJob, SunScanJob
 # from pass_scheduler import AutoTracker
 
@@ -71,7 +72,7 @@ class App:
     def __init__(self, sim: bool, iface: str, pi: str | None = None, gnss: str = "auto", sdr: bool = True):
         self.sim = sim
         self.events = deque(maxlen=60)
-        self._plog, self._plog_day, self._plog_flush = None, None, 0.0     # before the SDR thread can call _on_reading
+        self._plog, self._plog_day, self._plog_flush = None, None, 0.0     # must exist before the SDR thread calls _on_reading
         if sim:
             from sim_hw import SimCanLink, SimGnss, SimSunSensor, SimWorld
             link = SimCanLink()
@@ -96,16 +97,16 @@ class App:
         self.gnss.start()
         if self.meter is not None:
             self.meter.on_reading = self._on_reading
-            self.meter.start()                                   # opens the USRP in its own thread
+            self.meter.start()                                   # USRP is opened in its own thread
         self.sun = SunSession(self.g, lambda: self.meter, self.gnss, self.site)
         self.test = TestSession(self.g, lambda: self.meter, self.gnss, self.site, self.relay_status)
         self._sdr_enabled = sdr
-        try:                                                     # skyfield is loaded only here (not at import time)
+        try:                                                     # skyfield is loaded here, not at import
             from sat_job import SatSession
             from types import SimpleNamespace
             rx = SimpleNamespace(start=self.receive_start, stop=self.receive_stop, busy=lambda: self.demod.busy())
             self.sat = SatSession(self.g, self.gnss, self.site, self.mount_yaw, sim, rx=rx)
-        except ImportError as e:                                 # skyfield missing: everything else still works
+        except ImportError as e:                                 # no skyfield: the rest still works
             log.warning("satellite tracking disabled: %s (pip install skyfield)", e)
             self.sat = None
         self._net = {"ok": None, "t": 0.0}
@@ -157,19 +158,19 @@ class App:
 
     # ------------------------------------------------------------------ receiving: the B206mini goes to the demodulator
     def receive_start(self, o=None):
-        """Start taking in data: live demod (or record + duty demod at 20 MBd), decoded files -> Received/run_<UTC>/,
-        raw IQ -> Received/recordings/. The power meter is paused meanwhile (one program opens the radio)."""
+        """Start receiving: live demod (or record + duty demod at 20 MBd). Decoded files go to Received/run_<UTC>/,
+        raw IQ to Received/recordings/. The power meter is paused, only one program can open the radio."""
         o = dict(o or {})
         preset = o.get("preset") or config.DEMOD.preset
         if preset not in ("ops20", "linkx2", "field1"):
             raise ValueError("preset must be ops20 / linkx2 / field1")
-        mode = o.get("mode") or ("record" if preset == "ops20" else "live")      # 20 MBd can't be demodulated live on this laptop
+        mode = o.get("mode") or ("record" if preset == "ops20" else "live")      # laptop can't demodulate 20 MBd live
         opts = {"mode": mode, "preset": preset, "record": True if mode == "record" else bool(o.get("record", True))}
         if o.get("tle"):
             opts["tle"] = o["tle"]
-        if self.sim:                                                             # the real radio is never opened with --sim
+        if self.sim:                                                             # --sim never opens the real radio
             opts["sim_input"] = o.get("sim_input") or os.environ.get("GS_SIM_IQ")
-            if not opts["sim_input"]:                                            # no recording given: make a test signal and receive that
+            if not opts["sim_input"]:                                            # no recording given: generate a test signal
                 self.event("Simulator: making a test signal and receiving it")
                 return self.rehearsal.start("field1")
         r = self.demod.start(opts)
@@ -189,7 +190,7 @@ class App:
         fy = getattr(self.sat, "found_yaw", None) if self.sat else None
         if fy is not None:
             return {"cal": {"yaw": fy}, "offs": (0.0, 0.0), "source": "Satellite (GNSS north)"}
-        try:                                                    # live GNSS heading (RTK FIXED) if nothing else has found north yet
+        try:                                                    # use the live RTK FIXED GNSS heading if nothing else has found north yet
             st = self.gnss.status() if self.gnss else {}
             if st.get("heading_valid") and st.get("heading") is not None:
                 yaw = ((st["heading"] - config.gnss_bar_deg() + 180) % 360) - 180
@@ -214,7 +215,7 @@ class App:
             time.sleep(60)
 
     def components(self):
-        """What is connected right now (each one decides which tests / modes are possible)."""
+        """What is connected right now (decides which tests / modes are possible)."""
         rel = self.relay_status()
         snap = self.g.snapshot()
         drives = [k for k, a in snap["axes"].items() if a["found"]]
@@ -253,7 +254,7 @@ class App:
         (log.info if level == "info" else log.warning)(msg)
 
     def _on_reading(self, r):
-        """Every SDR reading: pose at that moment -> the Sun job + logs/power_<date>.csv."""
+        """Every SDR reading: take the pose at that moment, feed the Sun job and logs/power_<date>.csv."""
         pose = self.g.pose_at(r["tm"])
         self.sun.on_reading(r, pose)
         try:
@@ -357,7 +358,7 @@ class App:
             return None
         if cmd == "stop":
             why = c.get("why") or "STOP"
-            f = g.stop_all(why)                                 # queued first: the job's move-off comes after it
+            f = g.stop_all(why)                                 # queued first, the job's move-off follows
             self.sun.abort(why)
             self.test.abort(why)
             if self.sat:
@@ -491,7 +492,7 @@ class App:
             if v not in (None, "") and not (0 < float(v) < 100000):
                 raise ValueError("solar flux must be a positive number of sfu")
             return self.sun.set_flux(v)
-        if cmd == "sim":                                        # simulator test hooks only
+        if cmd == "sim":                                        # simulator test hooks
             if not self.sim:
                 raise RuntimeError("sim command only available with --sim")
             for k, v in c.items():
@@ -546,7 +547,7 @@ def make_handler(app: App):
             if self.path == "/api/state":
                 return self._send(200, app.state())
             if not self.path.startswith("/api/") and self.path not in ("/", "/index.html"):
-                try:                                                # ui/model/*.glb, ui/vendor/*.js ... (inside ui/ only)
+                try:                                                # ui/model/*.glb, ui/vendor/*.js etc, only inside ui/
                     f = (UI_DIR / urlparse(self.path).path.lstrip("/")).resolve()
                     if UI_DIR.resolve() not in f.parents or f.suffix not in STATIC_TYPES or not f.is_file():
                         raise FileNotFoundError
@@ -593,7 +594,7 @@ def make_handler(app: App):
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
-            if self.path == "/api/upload":                                  # a picture to send through the receiver test
+            if self.path == "/api/upload":                                  # picture to send through the receiver test
                 try:
                     from urllib.parse import unquote
                     n = int(self.headers.get("Content-Length", 0))
@@ -640,7 +641,7 @@ def main():
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--no-browser", action="store_true", help="don't open the page in the browser automatically")
     a = ap.parse_args()
-    for stream in (sys.stdout, sys.stderr):                     # Windows console: degree signs etc. in the log
+    for stream in (sys.stdout, sys.stderr):                     # Windows console: needs utf-8 for degree signs in the log
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
@@ -650,7 +651,7 @@ def main():
         clock.set_sim_start(a.sim_clock)
     sim = a.sim or a.iface == "sim"
     if not sim and a.iface == "remote" and not a.pi:
-        a.pi = os.environ.get("GS_PI") or "127.0.0.1"          # no Pi given: start anyway, the gimbal simply shows "not detected"
+        a.pi = os.environ.get("GS_PI") or "127.0.0.1"          # no Pi given: start anyway, gimbal shows "not detected"
         if a.pi == "127.0.0.1":
             print("\n  No Pi address given (--pi <ip> or GS_PI=<ip>): starting WITHOUT the gimbal link."
                   "\n  GNSS, SDR, Sun / satellite prediction and the Test page still work.\n")
@@ -658,7 +659,7 @@ def main():
         os.environ.setdefault("GS_SIM", "1")
     app = App(sim, a.iface, a.pi, a.gnss, not a.no_sdr)
     srv = None
-    for port in range(a.port, a.port + 11):                      # 8080 busy? take the next free one
+    for port in range(a.port, a.port + 11):                      # 8080 busy, take the next free one
         try:
             srv = ThreadingHTTPServer((a.host, port), make_handler(app))
             break
@@ -684,242 +685,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# ==================================================================================================
-# DISABLED (test stage): the full app (Calibrate / Test / Auto, sky dome, GNSS, SDR, orbits).
-# Needs the imports commented out at the top (numpy, skyfield, pyubx2, uhd behind them).
-# ==================================================================================================
-# class App:
-#     def __init__(self, sim: bool, iface: str):
-#         self.sim = sim
-#         self.cal = Calibration()
-#         self.events = deque(maxlen=60)
-#         if sim:
-#             from sim_hw import SimCanLink, SimGnss, SimSunSensor
-#             link, self.gnss, self._sdr = SimCanLink(), SimGnss(), SimSunSensor()
-#         else:
-#             from gps_reader import GnssReader
-#             from zeroerr_protocol import open_link
-#             link = open_link(config.CanBusConfig(interface=iface))
-#             self.gnss, self._sdr = GnssReader(), None
-#         self.gnss.start()
-#         self.g = Gimbal(link, home=self.cal.data["home"])
-#         self.g.start()
-#         self.auto = AutoTracker(self.g, self.cal, self.site, sim=sim)
-#         self.job = None
-#         self.ui_mode = "calibrate" if self.cal.status in ("none", "home") else "test"
-#         if not sim:
-#             threading.Thread(target=self.sdr, daemon=True).start()       # open the USRP in the background
-#
-#     # ------------------------------------------------------------------ helpers
-#     def sdr(self):
-#         if self._sdr is None:
-#             from sdr_power import SdrPower
-#             self._sdr = SdrPower()
-#         return self._sdr
-#
-#     def site(self) -> config.SiteConfig:
-#         s = self.cal.data.get("site")
-#         if s:
-#             return config.SiteConfig(s["lat"], s["lon"], s["h"], "GNSS (saved)")
-#         st = self.gnss.status()
-#         if st.get("fix_type", 0) >= 3:
-#             return config.SiteConfig(st["lat"], st["lon"], st.get("h_msl", 0.0), "GNSS (live)")
-#         return config.SITE
-#
-#     def event(self, msg, level="info"):
-#         self.events.append({"t": clock.now().isoformat(timespec="seconds"), "level": level, "msg": msg})
-#         log.info(msg)
-#
-#     def sun_path(self, site):
-#         """Today's Sun track (local day) for the sky dome, cached per date."""
-#         from datetime import datetime, timedelta, timezone
-#         local = clock.now().astimezone(timezone(timedelta(hours=8)))
-#         key = (local.date(), round(site.latitude_deg, 2), round(site.longitude_deg, 2))
-#         if getattr(self, "_sun_key", None) != key:
-#             start = datetime(local.year, local.month, local.day, tzinfo=local.tzinfo)
-#             pts = []
-#             for m in range(0, 24 * 60, 10):
-#                 az, el = sun_azel(start + timedelta(minutes=m), site.latitude_deg, site.longitude_deg)
-#                 if el > -2:
-#                     pts.append([round(az, 2), round(el, 2), f"{m // 60:02d}:{m % 60:02d}"])
-#             self._sun_key, self._sun_path = key, pts
-#         return self._sun_path
-#
-#     def _job_running(self):
-#         return self.job is not None and self.job.progress["state"] == "running"
-#
-#     # ------------------------------------------------------------------ state for the UI
-#     def state(self) -> dict:
-#         now = clock.now()
-#         site = self.site()
-#         g = self.g.snapshot()
-#         x, y = self.g.angles()
-#         pointing = None
-#         if x is not None and y is not None:
-#             az, el = K.axes_to_azel(x, y, self.cal.params)
-#             pointing = {"az": az, "el": el, "compass": K.compass(az)}
-#         saz, sel = sun_azel(now, site.latitude_deg, site.longitude_deg)
-#         gs = self.gnss.status()
-#         sdr = self._sdr
-#         evs = sorted(list(self.events) + list(self.g.events), key=lambda e: e["t"])[-14:]
-#         return {
-#             "now": now.isoformat(), "sim": self.sim, "ui_mode": self.ui_mode, "gimbal": g, "pointing": pointing,
-#             "sun": {"az": saz, "el": sel, "path": self.sun_path(site),
-#                     "scan_ok": config.SUN_SCAN.min_elevation_deg <= sel <= config.SUN_SCAN.max_elevation_deg,
-#                     "scan_window": [config.SUN_SCAN.min_elevation_deg, config.SUN_SCAN.max_elevation_deg]}, "site": {"lat": site.latitude_deg, "lon": site.longitude_deg,
-#                                                     "source": site.name},
-#             "cal": self.cal.summary(), "job": self.job.progress if self.job else None,
-#             "auto": self.auto.snapshot(),
-#             "gnss": {k: gs.get(k) for k in ("connected", "port", "fix_type", "num_sv", "carr", "heading",
-#                                             "pitch", "heading_valid", "clock_offset_s", "error")},
-#             "sdr": {"available": bool(sdr and sdr.available), "error": getattr(sdr, "error", None) if sdr else "opening"},
-#             "jog_speeds": config.JOG_SPEEDS_DEG_S, "events": evs,
-#         }
-#
-#     # ------------------------------------------------------------------ commands
-#     def command(self, c: dict):
-#         cmd = c.get("cmd")
-#         g = self.g
-#         if cmd == "jog":                               # hot path: no logging
-#             if self.ui_mode in ("test", "calibrate") and not self._job_running() and not self.auto.running:
-#                 g.jog(c.get("x", 0), c.get("y", 0))
-#             return
-#         if cmd == "mode":
-#             m = c["mode"]
-#             if m != self.ui_mode:
-#                 self._stop_activity()
-#                 self.ui_mode = m
-#         elif cmd == "estop":
-#             self._stop_activity()
-#             g.estop().result(3)
-#         elif cmd == "enable":
-#             g.enable().result(5)
-#         elif cmd == "disable":
-#             self._stop_activity()
-#             g.disable().result(3)
-#         elif cmd == "reset":
-#             g.reset_fault().result(3)
-#         elif cmd == "jog_speed":
-#             g.set_jog_speed(float(c["value"]))
-#         elif cmd == "set_home":
-#             home = g.set_home().result(3)
-#             self.cal.set_home(home)
-#             self.event("HOME saved - calibration measurements cleared (they were relative to the old HOME)")
-#         elif cmd == "go_home":
-#             g.goto(0.0, 0.0).result(3)
-#         elif cmd in ("cal_gnss", "cal_sun"):
-#             if self._job_running():
-#                 raise RuntimeError("A calibration step is already running")
-#             if self.auto.running:
-#                 raise RuntimeError("Stop Auto mode first")
-#             if cmd == "cal_gnss":
-#                 self.job = GnssPoseJob(g, self.cal, self.site, self.gnss).start()
-#             else:
-#                 self.job = SunScanJob(g, self.cal, self.site, self.sdr()).start()
-#         elif cmd == "cal_cancel":
-#             if self.job:
-#                 self.job.cancel()
-#         elif cmd == "cal_clear":
-#             self.cal.clear_measurements()
-#             self.event("calibration measurements cleared (HOME kept)")
-#         elif cmd == "auto_start":
-#             if self.cal.status in ("none", "home") and not c.get("force"):
-#                 raise RuntimeError("Calibrate first: HOME plus the GNSS or Sun step")
-#             if self._job_running():
-#                 raise RuntimeError("A calibration step is running")
-#             self.auto.start()
-#             self.event("Auto mode started")
-#         elif cmd == "auto_stop":
-#             self.auto.stop()
-#             self.event("Auto mode stopped")
-#         else:
-#             raise ValueError(f"unknown command {cmd!r}")
-#
-#     def _stop_activity(self):
-#         if self.job and self._job_running():
-#             self.job.cancel()
-#         if self.auto.running:
-#             self.auto.stop()
-#         self.g.jog(0, 0)
-#         if self.g.mode in ("track", "goto", "jog"):
-#             self.g.hold().result(3)
-#
-#
-# def make_handler(app: App):
-#     class H(BaseHTTPRequestHandler):
-#         def log_message(self, *a):
-#             pass
-#
-#         def _send(self, code, body, ctype="application/json"):
-#             data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
-#             self.send_response(code)
-#             self.send_header("Content-Type", ctype)
-#             self.send_header("Content-Length", str(len(data)))
-#             self.send_header("Cache-Control", "no-store")
-#             self.end_headers()
-#             self.wfile.write(data)
-#
-#         def do_GET(self):
-#             if self.path in ("/", "/index.html"):
-#                 return self._send(200, UI.read_bytes(), "text/html; charset=utf-8")
-#             if self.path == "/api/state":
-#                 return self._send(200, app.state())
-#             if self.path == "/api/stream":
-#                 self.send_response(200)
-#                 self.send_header("Content-Type", "text/event-stream")
-#                 self.send_header("Cache-Control", "no-cache")
-#                 self.end_headers()
-#                 try:
-#                     while True:
-#                         self.wfile.write(f"data: {json.dumps(app.state(), default=str)}\n\n".encode())
-#                         self.wfile.flush()
-#                         time.sleep(0.25)
-#                 except (BrokenPipeError, ConnectionResetError):
-#                     return
-#             self._send(404, {"error": "not found"})
-#
-#         def do_POST(self):
-#             if self.path != "/api/cmd":
-#                 return self._send(404, {"error": "not found"})
-#             try:
-#                 c = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-#                 app.command(c)
-#                 self._send(200, {"ok": True})
-#             except Exception as e:
-#                 if c.get("cmd") != "jog":
-#                     app.event(str(e), "error")
-#                 self._send(400, {"ok": False, "error": str(e)})
-#     return H
-#
-#
-# def main():
-#     ap = argparse.ArgumentParser(description="Ground station UI")
-#     ap.add_argument("--sim", action="store_true", help="simulated motors/GNSS/SDR")
-#     ap.add_argument("--sim-clock", help="simulator start time, e.g. 2026-11-06T09:00:00+08:00")
-#     ap.add_argument("--iface", default="auto", choices=["auto", "socketcan", "waveshare"])
-#     ap.add_argument("--host", default="127.0.0.1")
-#     ap.add_argument("--port", type=int, default=8080)
-#     a = ap.parse_args()
-#     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
-#     if a.sim_clock:
-#         clock.set_sim_start(a.sim_clock)
-#     if a.sim:
-#         os.environ.setdefault("GS_SIM", "1")
-#     app = App(a.sim, a.iface)
-#     srv = ThreadingHTTPServer((a.host, a.port), make_handler(app))
-#     srv.daemon_threads = True
-#     print(f"\n  Ground station UI: http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{a.port}"
-#           f"   ({'SIMULATOR' if a.sim else 'HARDWARE'})\n")
-#     try:
-#         srv.serve_forever()
-#     except KeyboardInterrupt:
-#         print("\nshutting down: motors off")
-#     finally:
-#         app.auto.stop()
-#         app.g.shutdown()
-#
-#
-# if __name__ == "__main__":
-#     main()

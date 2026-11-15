@@ -1,16 +1,16 @@
 """
 gps_reader.py - ZED-F9P heading-kit reader (UBX, not NMEA).
 
-Replaces the v2 NMEA reader (pynmea2 on /dev/ttyAMA0 at 9600 baud), which could never see the
+Replaces the v2 NMEA reader (pynmea2 on /dev/ttyAMA0 at 9600 baud). That one could never see the
 ArduSimple kit: the heading rover talks UBX over native USB (/dev/ttyACM*), and NMEA has no
 NAV-RELPOSNED (baseline heading/pitch) or reliable GPS time.
 
-Reads from the ROVER board (simpleRTK2B bottom, POWER+GPS USB):
-  NAV-PVT        -> position, fix, satellites, clock offset of this computer vs GNSS
-  NAV-RELPOSNED  -> baseline heading (base antenna -> rover antenna) and pitch
-Enables those two messages in RAM only (nothing written to flash). Receive-only otherwise.
+Reads from the rover board (simpleRTK2B bottom, POWER+GPS USB):
+  NAV-PVT        position, fix, satellites, clock offset of this computer vs GNSS
+  NAV-RELPOSNED  baseline heading (base antenna to rover antenna) and pitch
+Enables those two messages in RAM only, nothing is written to flash. Receive only otherwise.
 
-Prerequisite (once, already done on the bench): gnss_test.py config-base / config-rover.
+Config was done once on the bench with gnss_test.py config-base / config-rover.
 Needs: pip install pyubx2==1.4.0 pyserial
 """
 import logging
@@ -40,13 +40,13 @@ class GnssReader:
         self.port = port or config.GNSS.rover_port
         self._pvt, self._rel, self._rel_t, self._pvt_t = None, None, 0.0, 0.0
         self._offsets = []
-        self._samples = []                # (t, heading, pitch) recent valid FIXED samples
+        self._samples = []                # recent valid FIXED samples (t, heading, pitch)
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
         self.error = None
 
-    # ------------------------------------------------------------------ thread
+    # thread
     def start(self):
         self._thread = threading.Thread(target=self._run, name="gnss", daemon=True)
         self._thread.start()
@@ -98,7 +98,7 @@ class GnssReader:
                         if m.carrSoln == 2 and m.relPosHeadingValid:
                             self._samples = [s for s in self._samples if now - s[0] < 120] + [(now, m.relPosHeading, pitch)]
 
-    # ------------------------------------------------------------------ API
+    # API
     def status(self) -> dict:
         with self._lock:
             pvt, rel, now = self._pvt, self._rel, time.monotonic()
@@ -115,7 +115,7 @@ class GnssReader:
         return st
 
     def average_baseline(self, seconds: float, cancel=None) -> dict | None:
-        """Mean heading/pitch over the next `seconds` of RTK-FIXED epochs (None if too few)."""
+        """Mean heading/pitch over the next `seconds` of RTK-FIXED epochs, None if too few."""
         t0 = time.monotonic()
         while time.monotonic() - t0 < seconds:
             if cancel and cancel():

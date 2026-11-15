@@ -1,27 +1,22 @@
-"""
-DVB-S2 baseband frame handling: turn the BBFRAME stream your DVB-S2 receiver
-produces back into the continuous byte stream that GSSE runs on.
+"""DVB-S2 baseband frame handling: turns the BBFRAME stream from the receiver back into
+the continuous byte stream that GSSE runs on.
 
-Reference: ETSI EN 302 307-1 clause 5.1.6 (BBHEADER) and GomSpace ICD 1045318
-section 3.2 (identical in rev 1.0 and rev 1.2).
+Refs: ETSI EN 302 307-1 clause 5.1.6 (BBHEADER), GomSpace ICD 1045318 section 3.2
+(same in rev 1.0 and rev 1.2).
 
-A BBFRAME is: 10-byte BBHEADER, then DFL/8 bytes of DATA FIELD, then zero
-padding out to KBCH/8 bytes. For a generic continuous stream the data field is
-just the next slice of an endless byte stream:
-
-    for each BBFRAME: strip the 10-byte header, keep DFL/8 bytes, drop padding
-
-and concatenate. That concatenation is the GSSE byte stream.
+A BBFRAME is a 10-byte BBHEADER, DFL/8 bytes of data field, then zero padding up to
+KBCH/8 bytes. For a generic continuous stream the data field is just the next slice of an
+endless byte stream, so: strip the header, keep DFL/8 bytes, drop the padding, concatenate.
+The result is the GSSE byte stream.
 
 v2 changes (see CHANGES.md):
-  * Re-sync now needs TWO consecutive valid headers (k and k+frame_len).
-    With only an 8-bit CRC + DFL range check, v1 had roughly a 1-in-8000
-    false-lock chance per byte offset while sliding - i.e. a ~20 % chance of
-    locking onto garbage per lost frame at QPSK 1/4.
-  * DFL = 0 accepted (valid header, empty data field).
-  * Link X MODCOD numbers 1-28 (Control ICD Table 3.5) accepted.
-  * detect_frame_len(): finds the BBFRAME length from the data itself, so a
-    wrong --modcod / UDP sink size is diagnosed instead of silently re-syncing.
+  * Re-sync needs two consecutive valid headers (k and k + frame_len). With only the
+    8-bit CRC and a DFL range check, v1 had about a 1 in 8000 false-lock chance per byte
+    offset while sliding, roughly 20 % per lost frame at QPSK 1/4.
+  * DFL = 0 is accepted (valid header, empty data field).
+  * Link X MODCOD numbers 1-28 (Control ICD Table 3.5) are accepted.
+  * detect_frame_len() finds the BBFRAME length from the data, so a wrong --modcod or UDP
+    sink size gets diagnosed instead of silently re-syncing.
   * Per-stream statistics (MATYPE / ISI histogram) for the test record.
 """
 

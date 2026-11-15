@@ -1,9 +1,9 @@
 """
-pass_scheduler.py - pass prediction + the autonomous tracking daemon (Auto mode).
+pass_scheduler.py - pass prediction and the autonomous tracking daemon (Auto mode).
 
-v2 problems fixed: targets by catalog number; no 'sleep for hours' (the daemon stays responsive
-to Stop); the pass is precomputed and checked before AOS; tracking goes through gimbal.Gimbal
-(one CAN owner, proven moves) instead of a 10 Hz velocity loop; stale elements are refused.
+Fixes over v2: targets by catalog number, no sleeping for hours (the daemon answers Stop), the pass
+is precomputed and checked before AOS, tracking goes through gimbal.Gimbal (one CAN owner, proven
+moves) instead of a 10 Hz velocity loop, and stale elements are refused.
 """
 import logging
 import threading
@@ -71,7 +71,7 @@ class AutoTracker:
         self._thread = threading.Thread(target=self._run, name="auto", daemon=True)
         self._thread.start()
 
-    # ------------------------------------------------------------------ control
+    # control
     def start(self):
         self.running = True
         self.msg = "starting"
@@ -83,7 +83,7 @@ class AutoTracker:
         self.current, self.table = None, None
         self.state, self.msg = "stopped", "Auto mode is off"
 
-    # ------------------------------------------------------------------ predictions
+    # predictions
     def predict(self, force=False):
         if not force and time.monotonic() - self._predicted_at < 1800 and self.passes:
             return
@@ -121,7 +121,7 @@ class AutoTracker:
             res.append(d)
         return res
 
-    # ------------------------------------------------------------------ daemon
+    # daemon
     def _run(self):
         while True:
             try:
@@ -191,7 +191,7 @@ class AutoTracker:
             self.state = "tracking"
             self.msg = f"tracking {p.name}, LOS in {(p.set - clock.now()).total_seconds():.0f} s"
             time.sleep(0.5)
-        self.skipped.add(key)                         # done (or aborted): don't retry this pass
+        self.skipped.add(key)                         # done or aborted, don't retry this pass
         if self.running and self.g.mode == "track":
             self.state, self.msg = "parking", "pass complete, returning home"
             self.g.goto(0.0, 0.0).result(5)

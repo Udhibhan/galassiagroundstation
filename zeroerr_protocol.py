@@ -1,21 +1,21 @@
 """
-zeroerr_protocol.py - ZeroErr eRob CAN-custom protocol: adapters + one drive (node).
+zeroerr_protocol.py - ZeroErr eRob CAN-custom protocol: link adapters + one drive (node).
 
-Proven on the bench 2026-10-20 (both motors, Pi CAN HAT and Waveshare USB-CAN-A):
+Bench-proven 2026-10-20 (both motors, Pi CAN HAT and Waveshare USB-CAN-A):
   command  0x640+N : [index 2B big-endian] [value 4B big-endian, optional]
   reply    0x5C0+N : read  -> [value 4B][3E]
                      write -> [3E]                     OK
-                              [error code 2B][3E]      REFUSED (e.g. 00 27 3E = motor OFF)
-A refused write is NOT 0x80. Any write reply other than exactly 3E is an error.
+                              [error code 2B][3E]      refused (e.g. 00 27 3E = motor OFF)
+A refused write is not 0x80. Any write reply other than exactly 3E is an error.
 
-Rules learned on the bench:
+Bench rules:
   * 1 Mbps, fixed.
-  * Small gap (>= 20 ms) before every request; never burst-poll right after enable.
-  * One thread owns the bus (gimbal.Gimbal). Nothing else may call send/recv.
+  * Gap of at least 20 ms before every request; don't burst-poll right after enable.
+  * One thread owns the bus (gimbal.Gimbal), nothing else calls send/recv.
 
-Adapters (all have send(id, data), recv(timeout) -> (id, bytes) | None, close(), name):
-  RemoteCanLink  TCP to can_relay.py on the Pi (DEFAULT: app on the laptop, Pi only relays CAN)
-  CanUtilsLink   can-utils `candump` / `cansend` subprocesses (app running on the Pi itself)
+Links (each has send(id, data), recv(timeout) -> (id, bytes) | None, close(), name):
+  RemoteCanLink  TCP to can_relay.py on the Pi (default: app on the laptop, Pi only relays CAN)
+  CanUtilsLink   can-utils candump / cansend subprocesses (app running on the Pi itself)
   SocketCanLink  python-can on SocketCAN
   WaveshareLink  Waveshare USB-CAN-A (serial)
   SimCanLink     sim_hw.py, no hardware
@@ -42,25 +42,25 @@ ERRORS = {
 }
 STATES = {0: "OFF", 1: "on, idle", 2: "moving", 3: "settling", 4: "target reached"}
 
-# Registers (only the ones the proven sequence uses + read-only status)
+# Registers: the ones the proven sequence uses, plus read-only status
 REG_POSITION = 0x0002     # read, counts
 REG_CURRENT = 0x0008      # read, motor current, signed mA
 REG_ERROR = 0x001F        # read, stored error code
 REG_BUS_MV = 0x0024       # read, bus voltage in mV
 REG_TEMP = 0x0026         # read, drive temperature in deg C
 REG_ID = 0x0043           # read, used for scanning
-REG_OPMODE = 0x004E       # 3 = position control           (write only while OFF)
-REG_MOTION_MODE = 0x008D  # 1 = target-position mode       (write only while OFF)
+REG_OPMODE = 0x004E       # 3 = position control (write only while OFF)
+REG_MOTION_MODE = 0x008D  # 1 = target-position mode (write only while OFF)
 REG_LIMIT_ACC = 0x009E    # 1 = motion limited by accel/decel
 REG_ACCEL = 0x0088
 REG_DECEL = 0x0089
 REG_SPEED = 0x008A
 REG_START = 0x0083        # trigger, no value
 REG_STOP = 0x0084         # trigger, no value
-REG_REL_TARGET = 0x0087   # relative move, counts (set AFTER enable)
+REG_REL_TARGET = 0x0087   # relative move, counts (set after enable)
 REG_STATE = 0x010C        # read: 0 off, 1 idle, 2 moving, 3 settling, 4 reached
 REG_ENABLE = 0x0100       # 1 enable, 0 disable (brake holds)
-# Never written by this software: 0x0050 max speed, 0x0052/0x0053 drive limits, 0x00E8 save-to-flash.
+# Never written here: 0x0050 max speed, 0x0052/0x0053 drive limits, 0x00E8 save-to-flash.
 NEVER_WRITE = frozenset({0x0050, 0x0052, 0x0053, 0x00E8})
 
 
@@ -87,7 +87,7 @@ _CANDUMP_LINE = re.compile(r"^\(\s*[\d.]+\)\s+(\S+)\s+([0-9A-Fa-f]{3,8})#([0-9A-
 
 
 def parse_candump_line(line: str):
-    """'(1699999999.123456) can0 5C1#0000123E3E' -> (0x5C1, bytes 00 00 12 3E 3E), else None.
+    """'(1699999999.123456) can0 5C1#0000123E3E' gives (0x5C1, bytes 00 00 12 3E 3E), else None.
     Remote (#R) and CAN-FD (##) frames are ignored."""
     m = _CANDUMP_LINE.match(line.strip())
     if not m or len(m.group(3)) % 2:
@@ -96,8 +96,8 @@ def parse_candump_line(line: str):
 
 
 class CanUtilsLink:
-    """can-utils backend: one `candump -L` subprocess feeds a reader thread; each frame is sent with
-    `cansend`. Proven on the Pi where python-can did not work. Bring the bus up first:
+    """can-utils backend: a `candump -L` subprocess feeds a reader thread, frames go out via
+    `cansend`. Works on the Pi where python-can didn't. Bring the bus up first:
         sudo ip link set can0 up type can bitrate 1000000 restart-ms 100"""
 
     def __init__(self, channel="can0"):
@@ -107,7 +107,7 @@ class CanUtilsLink:
             if shutil.which(tool) is None:
                 raise RuntimeError(f"'{tool}' not found. Install can-utils:  sudo apt install can-utils")
         self.q = queue.Queue()
-        # filter: only drive replies 0x5C0..0x5FF (our own 0x64x frames would be looped back otherwise)
+        # only drive replies 0x5C0..0x5FF, otherwise our own 0x64x frames get looped back
         self.proc = subprocess.Popen(["candump", "-L", f"{channel},5C0:7C0"], stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, text=True, bufsize=1)
         time.sleep(0.3)
@@ -232,10 +232,10 @@ class WaveshareLink:
 
 
 class RemoteCanLink:
-    """CAN on the Pi through can_relay.py (TCP, newline-delimited JSON). DEFAULT in the split setup.
-    Same interface as the other links. A small thread sends {"op":"hb"} every 0.5 s (the relay STOPs
-    both nodes after 2 s of silence). Reconnects with backoff; while disconnected send/recv raise
-    OSError, so the Gimbal goes 'offline' and retries."""
+    """CAN on the Pi through can_relay.py (TCP, newline-delimited JSON). Default in the split setup.
+    A thread sends {"op":"hb"} every 0.5 s (the relay STOPs both nodes after 2 s of silence) and
+    reconnects with backoff. While disconnected send/recv raise OSError, so the Gimbal goes
+    'offline' and retries."""
     reply_timeout_s = config.RELAY_REPLY_TIMEOUT_S
 
     def __init__(self, pi: str, connect_timeout=3.0):
@@ -251,7 +251,7 @@ class RemoteCanLink:
         self.connected = False
         self.hello = None
         self.last_error = None
-        self.relay_errors = deque(maxlen=20)       # {"op":"err"} messages from the relay
+        self.relay_errors = deque(maxlen=20)       # err messages from the relay
         self._sock = None
         self._wlock = threading.Lock()
         self._stop = threading.Event()
@@ -379,7 +379,7 @@ def _find_waveshare_port():
 
 
 def open_link(cfg: config.CanBusConfig | None = None):
-    """interface: remote (default, Pi relay) | canutils | socketcan | waveshare | sim  (auto kept for old scripts)."""
+    """interface: remote (default, Pi relay) | canutils | socketcan | waveshare | sim (auto is for old scripts)."""
     cfg = cfg or config.CAN_BUS
     iface = cfg.interface
     if iface == "sim":
@@ -409,9 +409,9 @@ class Drive:
         self.gap_s, self.timeout_s = gap_s, timeout_s
 
     def _xfer(self, payload: bytes, lengths: tuple, timeout=None) -> bytes:
-        """Clear stale frames, send, wait for a reply from 0x5C0+N whose length is in `lengths` and ends 3E.
+        """Drop stale frames, send, wait for a reply from 0x5C0+N with a length in `lengths` ending 3E.
         A late reply to an earlier request (other length) is skipped. For reads, a 3-byte refusal is
-        returned (-> DriveError) only if no 5-byte value arrives in time."""
+        only returned (and becomes DriveError) if no 5-byte value arrives in time."""
         time.sleep(self.gap_s)
         while self.link.recv(0) is not None:          # drop stale frames (boot msgs, late replies)
             pass
@@ -433,7 +433,7 @@ class Drive:
         if index in NEVER_WRITE:
             raise PermissionError(f"0x{index:04X} is a drive flash/limit register: never written by this software")
         p = struct.pack(">H", index) + (struct.pack(">i", int(value)) if value is not None else b"")
-        r = self._xfer(p, (1, 3))                     # 3E = OK, [code 2B][3E] = refused
+        r = self._xfer(p, (1, 3))                     # 3E = ok, [code 2B][3E] = refused
         if r != b"\x3e":
             raise DriveError(self.node, index, r)
 
@@ -445,7 +445,7 @@ class Drive:
 
     # --- the proven sequence, split into steps -------------------------------------
     def configure(self, speed_deg_s: float, accel_deg_s2: float | None = None, accel_counts: int | None = None) -> None:
-        """Motor OFF, then position mode + target-position mode + profile. Exactly the bench sequence:
+        """Motor off, then position mode, target-position mode and profile, same order as on the bench:
         0100=0, 004E=3, 008D=1, 009E=1, 0088=accel, 0089=accel, 008A=speed.
         accel_counts (raw register value) wins over accel_deg_s2."""
         acc = int(accel_counts) if accel_counts is not None else deg_to_counts(accel_deg_s2)
@@ -470,13 +470,13 @@ class Drive:
         raise RuntimeError(f"node {self.node}: would not enable")
 
     def move_relative(self, delta_deg: float) -> None:
-        """0x87 relative target then 0x83 START, back-to-back (motor must be enabled)."""
+        """0x87 relative target then 0x83 START back-to-back (motor must be enabled)."""
         self.write(REG_REL_TARGET, deg_to_counts(delta_deg))
         self.write(REG_START)
 
     def enable_and_move(self, delta_counts: int) -> None:
-        """The test-stage move: 0100=1, 0087=<relative counts>, 0083 START, back-to-back.
-        Never 'enable and wait': an enabled, idle drive switches its motor OFF (bench)."""
+        """Test-stage move: 0100=1, 0087=<relative counts>, 0083 START, back-to-back.
+        Don't enable and then wait: an enabled, idle drive switches its motor off (seen on the bench)."""
         self.write(REG_ENABLE, 1)
         self.write(REG_REL_TARGET, int(delta_counts))
         self.write(REG_START)

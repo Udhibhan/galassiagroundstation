@@ -1,19 +1,15 @@
 """
-pass_sim.py
-
-Simulates a satellite pass for the X-Y gimbal (no hardware, no CAN traffic).
+pass_sim.py - simulates a satellite pass for the X-Y gimbal (no hardware, no CAN traffic).
 
 TLE sources:
     "celestrak" - CelesTrak NORAD GP data, by name (via tle_manager.TleManager)
     "spacex"    - CelesTrak SupGP Starlink file, built from SpaceX's own ephemerides.
-                  CelesTrak allows one download every 2 hours, so it is cached to disk.
+                  CelesTrak allows one download per 2 hours, so it is cached to disk.
 
-"Zenith start": the virtual ground station is placed at the satellite's sub-point at
-the moment Track is pressed, so the dish starts pointing straight up (X = 0, Y = 0)
-and then follows the satellite for `duration_s`.
+Zenith start: the virtual station is put at the satellite's sub-point when Track is pressed,
+so the dish starts straight up (X = 0, Y = 0) and then follows the satellite for `duration_s`.
 
-Requires:
-    pip install skyfield requests numpy
+Needs: pip install skyfield requests numpy
 """
 
 import logging
@@ -51,7 +47,7 @@ def _parse_tle_text(text: str) -> list[tuple[str, str, str]]:
     return out
 
 
-# -- TLE sources -------------------------------------------------------------
+# -- TLE sources --
 
 def _supgp_starlink() -> list[tuple[str, str, str]]:
     """SpaceX-derived Starlink TLEs, refreshed at most every 2 hours."""
@@ -83,7 +79,7 @@ def get_satellite(name: str, source: str = "celestrak") -> tuple[EarthSatellite,
         except RuntimeError as exc:
             logger.warning("%s; falling back to CelesTrak GP", exc)
             label += " - SpaceX SupGP unavailable (2 h download limit)"
-    # v3: elements are looked up by NORAD catalog number (names are ambiguous)
+    # look elements up by NORAD catalog number, names are ambiguous
     key = name.strip().upper()
     catnr = int(key) if key.isdigit() else next((c for c, n in config.TARGETS.items() if n.upper() == key), None)
     if catnr is None:
@@ -98,7 +94,7 @@ def search(query: str, limit: int = 40) -> list[str]:
     return [n for n, _, _ in _parse_tle_text(resp.text)][:limit]
 
 
-# -- Simulation --------------------------------------------------------------
+# -- Simulation --
 
 def simulate(name: str, source: str = "celestrak", duration_s: float = 120.0,
              rate_hz: float = 10.0, start: datetime | None = None) -> dict:
@@ -106,7 +102,7 @@ def simulate(name: str, source: str = "celestrak", duration_s: float = 120.0,
     start = start or datetime.now(timezone.utc)
     t0 = _ts.from_datetime(start)
 
-    # Station directly under the satellite at t0 -> dish starts at zenith
+    # Station directly under the satellite at t0 so the dish starts at zenith
     sub = wgs84.subpoint_of(sat.at(t0))
     site = wgs84.latlon(sub.latitude.degrees, sub.longitude.degrees, elevation_m=0.0)
 

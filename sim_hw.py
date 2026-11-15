@@ -1,30 +1,35 @@
 """
-sim_hw.py - hardware simulator for `python app.py --sim`. No CAN, no serial, no SDR touched.
+sim_hw.py - hardware simulator for `python app.py --sim`. No CAN, serial or SDR is touched.
 
-* SimCanLink speaks the real eRob CAN-custom protocol frames, so the real Drive/Gimbal code runs
-  unchanged against it. It models what was learned on the bench (test stage, 2026-11):
-    - an enabled drive that gets no START within ~0.5 s switches its motor OFF
-    - START sent < 0.5 s after a motor-off is accepted, then the motor drops out
-    - 0x4E / 0x8D written while ON -> refused 0x16
-    - 0x83 START while still moving -> refused 0x15; START while OFF -> refused 0x27
-    - 0x8A speed written while moving -> refused 0x15 (or 0x16 always, with refuse_live_speed)
-    - after a completed move (or STOP) the motor stays ON and holds (state 4) indefinitely
-    - 0x0008 current (signed mA): ~0.9 A holding, ~2.5 A moving; 0x0026 temperature; 0x0024 bus mV
-* Test hooks (SimWorld.opts / SimDrive fields), reachable from app.py's sim-only "sim" command:
-    fake_current_a  force |current| (A) while ON          refuse_start  next START refused with this code
-    refuse_live_speed  0x8A refused 0x16 while ON          ignore_stop   0x84 accepted but not obeyed
-    set_deg         teleport the axis to this angle from HOME
-    current_model   "bench" (default, values above) | "load": loaded-dish model for current_char.py:
-                    X: 1.7 A x sign(motion) + gravity 7.6 A (+ side) / 6.6 A (- side) x sin(x) x (1 - 0.25 (1 - cos y))
-                    Y: 1.2 A x sign(motion) + gravity 3.0 A x sin(y) x cos(x); holding keeps +/-0.5 x friction
-                    in the approach direction; noise 0.06 A; drive temperature follows I^2 (tau 600 s)
-    gain_scale      multiply that axis' gravity term (current-stop trip tests)
-    fake_temp_c     force the temperature read-back (temperature-abort tests)    bus_v  force the bus voltage
-    (world-wide)    saturate: SDR peak 0.8 FS     gnss: "fixed" | "float" | "off"     sdr: "on" | "off"
-* HIDDEN TRUTH for the Sun / GNSS simulation (the software must FIND these):
-    mount yaw +4.0 deg, base tilt 0.5 deg, and the configured BORESIGHT_OFFSET (22 deg offset dish).
-  SimSunSensor: cold-sky floor + Gaussian Sun beam (FWHM 1.6 deg, +9 dB) at the TRUE beam direction.
-  SimGnss: NAV-RELPOSNED heading = bar direction + true yaw + 0.3 deg noise, carrSoln 2 (RTK FIXED).
+SimCanLink speaks the real eRob CAN-custom frames, so the real Drive/Gimbal code runs
+unchanged against it. Behaviour copied from the bench (test stage, 2026-11):
+  - enabled drive with no START within ~0.5 s switches its motor OFF
+  - START < 0.5 s after a motor-off is accepted, then the motor drops out
+  - 0x4E / 0x8D written while ON: refused 0x16
+  - 0x83 START while moving: refused 0x15; START while OFF: refused 0x27
+  - 0x8A speed written while moving: refused 0x15 (0x16 always with refuse_live_speed)
+  - after a finished move (or STOP) the motor stays ON and holds (state 4) indefinitely
+  - 0x0008 current (signed mA) ~0.9 A holding, ~2.5 A moving; 0x0026 temperature; 0x0024 bus mV
+
+Test hooks (SimWorld.opts / SimDrive fields), reached from app.py's sim-only "sim" command:
+  fake_current_a      force |current| (A) while ON
+  refuse_start        next START refused with this code
+  refuse_live_speed   0x8A refused 0x16 while ON
+  ignore_stop         0x84 accepted but not obeyed
+  set_deg             teleport the axis to this angle from HOME
+  current_model       "bench" (default, values above) or "load" (loaded dish, for current_char.py):
+                      X: 1.7 A x sign(motion) + gravity 7.6 A (+ side) / 6.6 A (- side) x sin(x) x (1 - 0.25 (1 - cos y))
+                      Y: 1.2 A x sign(motion) + gravity 3.0 A x sin(y) x cos(x); holding keeps +/-0.5 x friction
+                      in the approach direction; noise 0.06 A; drive temp follows I^2 (tau 600 s)
+  gain_scale          scale that axis' gravity term (current-stop trip tests)
+  fake_temp_c         force the temperature read-back (temperature-abort tests)
+  bus_v               force the bus voltage
+  world-wide:         saturate (SDR peak 0.8 FS), gnss ("fixed" | "float" | "off"), sdr ("on" | "off")
+
+Hidden truth for the Sun/GNSS simulation (the software has to find it): mount yaw +4.0 deg,
+base tilt 0.5 deg, plus the configured BORESIGHT_OFFSET (22 deg offset dish).
+SimSunSensor: cold-sky floor + Gaussian Sun beam (FWHM 1.6 deg, +9 dB) at the true beam direction.
+SimGnss: NAV-RELPOSNED heading = bar direction + true yaw + 0.3 deg noise, carrSoln 2 (RTK fixed).
 """
 import math
 import random

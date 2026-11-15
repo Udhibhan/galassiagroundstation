@@ -1,18 +1,19 @@
 """
-demod.py - the Galassia-5 demodulator as a supervised subprocess.
+demod.py - the Galassia-5 demodulator run as a supervised subprocess.
 
-    ./demod_env.sh python3 demod/unified/rx_cli.py ...   (GNU Radio 3.10 + the PATCHED gr-dvbs2rx + the GSSE/GSUFTP image decoder)
+    ./demod_env.sh python3 demod/unified/rx_cli.py ...
+    (GNU Radio 3.10 + patched gr-dvbs2rx + the GSSE/GSUFTP image decoder)
 
-Why a subprocess: a GNU Radio crash can never take the gimbal controller down, app.py needs no GNU Radio, and the
-demod runs in its own conda env (~/gs_demod_env) with its own Python.
+Why a subprocess: a GNU Radio crash can't take the gimbal controller down, app.py needs no GNU
+Radio, and the demod keeps its own conda env (~/gs_demod_env).
 
 Modes (rx_cli.py --mode):
-    file    decode an IQ recording (sc16 / fc32) as fast as the CPU allows -> images          (no SDR)
-    record  B206mini -> full-rate sc16 recording + a duty-cycled live demod (20 MBd passes)      (SDR, RECEIVE ONLY)
-    live    B206mini -> full demod, recording optional (<= ~20 MS/s)                             (SDR, RECEIVE ONLY)
+    file    decode an IQ recording (sc16 / fc32) as fast as the CPU allows, no SDR
+    record  B206mini to full-rate sc16 recording + duty-cycled live demod (20 MBd passes)
+    live    B206mini to full demod, recording optional (up to ~20 MS/s)
 
-RECEIVE ONLY: this module only ever starts rx_cli.py. It never starts tx_cli.py / tx_unified.py (which can open a UHD
-sink), always passes --antenna RX2, and refuses device args that mention tx.
+Receive only: this module only starts rx_cli.py, never tx_cli.py / tx_unified.py (which can open
+a UHD sink). It always passes --antenna RX2 and refuses device args that mention tx.
 
 The subprocess prints "[time] RX EVENT: ..." lines. A status line (every stats_every_s) looks like
     file 100.0% | REC 12s 0.0GB, 83GB free, lvl -23.1dBFS pk -12.0, O 3 | LOCK +2.00kHz 8.2dB | fr 283/199d | bch 256/17err | gsse 283/0bad files 1

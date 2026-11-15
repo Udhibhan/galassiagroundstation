@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""
-gs_rx - GomSpace NanoCom Link X / SX ground-side receiver (v2).
+"""gs_rx - GomSpace NanoCom Link X / SX ground-side receiver (v2).
 
-Takes BBFRAMEs from a DVB-S2 demodulator (e.g. gr-dvbs2rx over UDP, or a file)
-and recovers GSUFTP files.
+Takes BBFRAMEs from a DVB-S2 demodulator (e.g. gr-dvbs2rx over UDP, or a file) and
+recovers GSUFTP files.
 
-  BBFRAMEs -> header strip (bbframe.py) -> GSSE deframe + CRC-32 (gsse.py)
-           -> [rev 1.2 only: IPv4 defrag + UDP (ipudp.py)] -> GSUFTP (gsuftp.py)
+  BBFRAMEs: header strip (bbframe.py), GSSE deframe + CRC-32 (gsse.py),
+  [rev 1.2 only: IPv4 defrag + UDP (ipudp.py)], GSUFTP (gsuftp.py)
 
 Protocol stack by RF ICD 1045318 revision (--stack):
   rev1.0  current Link X:  GSUFTP packets directly inside GSSE (no IP/UDP)
   rev1.2  later SX:        GSUFTP over UDP over IPv4 inside GSSE
-  auto    (default) decide per GSSE payload: valid IPv4 header -> rev1.2 path,
-          otherwise try GSUFTP directly -> rev1.0 path, otherwise "unknown".
+  auto    (default) decide per GSSE payload: valid IPv4 header means rev1.2, otherwise try
+          GSUFTP directly (rev1.0), otherwise "unknown".
 
 Typical use:
   python3 gs_rx.py --from-file c2.bbframes --modcod 1 --out ./rx

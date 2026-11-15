@@ -6,7 +6,7 @@ track_satellite.py - headless: track the next pass of one satellite, no UI.
     python3 track_satellite.py 56309 --sim
 
 v2's 10 Hz velocity loop (18 CAN transactions per cycle, mode switches while enabled, no encoder
-zero) is gone: this now runs the same AutoTracker + Gimbal as Auto mode, limited to one target.
+zero) is gone. This runs the same AutoTracker + Gimbal as Auto mode, limited to one target.
 Ctrl+C stops and switches the motors off.
 """
 import argparse

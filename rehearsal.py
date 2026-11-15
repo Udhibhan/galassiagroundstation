@@ -1,12 +1,12 @@
 """
-rehearsal.py - test the receiver WITHOUT the radio, from the web page.
+rehearsal.py - test the receiver from the web page without the radio.
 
-    1. makes a short fake downlink: a test picture -> your own transmitter simulator (tx_cli.py, FILE output only, nothing is
-       transmitted) -> Received/test/<preset>.sc16
-    2. replays that recording through the real receiver (the same chain that decodes a satellite) for ~20 s
-    3. checks that the picture came out and is byte-identical to the original
+    1. make a short fake downlink: test picture -> our transmitter simulator (tx_cli.py, file
+       output only, nothing is transmitted) -> Received/test/<preset>.sc16
+    2. replay that recording through the real receiver (same chain that decodes a satellite), ~20 s
+    3. check the picture came out byte-identical
 
-It never opens the SDR (the receiver reads the file instead), so it can run with or without the radio plugged in.
+The SDR is never opened (the receiver reads the file), so this works with or without the radio plugged in.
 """
 import hashlib
 import logging
@@ -168,14 +168,14 @@ class Rehearsal:
                 pic = outbox / "test_image.png"
                 make_png(pic)
             want = hashlib.sha256(pic.read_bytes()).hexdigest()
-            # long enough for the receiver to lock and receive the whole picture at least once (about 44 kB/s at 1 MBd after overhead)
+            # long enough to lock and get the whole picture at least once (~44 kB/s at 1 MBd after overhead)
             dur = SECONDS if not self.image else int(min(120, max(SECONDS, 8 + 2.0 * pic.stat().st_size / (44000 * RATE_SPS[preset] / 2e6))))
             recv_s = dur + 10
             self.s["name"] = pic.name
             iq = folder / f"rehearsal_{preset}.sc16"
             for f in (iq, Path(str(iq) + ".json"), Path(str(iq) + ".start")):
                 f.unlink(missing_ok=True)
-            # 1. the fake downlink (file output only: nothing is transmitted)
+            # 1. fake downlink (file output only: nothing is transmitted)
             self._say("Sending your picture" if self.image else "Making a test signal",
                       f"{pic.name} ({pic.stat().st_size / 1000:.0f} kB) as a {preset} DVB-S2 signal, {dur} s (a recording; nothing is transmitted)")
             need = int(RATE_SPS[preset] * 4 * dur) // 4 * 4

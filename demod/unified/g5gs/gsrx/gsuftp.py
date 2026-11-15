@@ -1,29 +1,27 @@
-"""
-GSUFTP - GomSpace Unidirectional File Transfer Protocol (receiver side).
+"""GSUFTP - GomSpace Unidirectional File Transfer Protocol (receiver side).
 
 References:
-  * rev 1.2 (later SX): RF ICD 1045318 rev 1.2 appendix B - GSUFTP over UDP,
-    50 000-byte chunks, header = three NUL-terminated ASCII strings.
-  * rev 1.0 (current Link X): GSUFTP User Manual 1038382 rev 1.1 sec. 4 -
-    files split into "~10 MB packets which are prepended with information
-    regarding the file name, packet number, etc.", carried directly in GSSE
-    (Data ICD 1045208 fig 2.4). The rev 1.0 header layout is NOT documented.
-    This module ASSUMES it is the same NUL-terminated ASCII layout; the first
-    real capture confirms or refutes that (gs_rx.py --dump-payloads).
+  * rev 1.2 (later SX): RF ICD 1045318 rev 1.2 appendix B. GSUFTP over UDP, 50 000-byte
+    chunks, header = three NUL-terminated ASCII strings.
+  * rev 1.0 (current Link X): GSUFTP User Manual 1038382 rev 1.1 sec. 4. Files are split
+    into "~10 MB packets which are prepended with information regarding the file name,
+    packet number, etc." and carried directly in GSSE (Data ICD 1045208 fig 2.4). The
+    rev 1.0 header layout is not documented. This module assumes it is the same
+    NUL-terminated ASCII layout; the first real capture confirms or refutes that
+    (gs_rx.py --dump-payloads).
 
 Wire format (rev 1.2 ICD figure B.1):
 
     <file identifier>\\0<total chunk number>\\0<chunk number>\\0<file data>
 
 v2 changes (see CHANGES.md):
-  * No fixed chunk size: files are assembled by concatenating chunks 1..N in
-    order, and the observed chunk size is reported. A size mismatch between
-    non-final chunks is flagged (expected 50 000 for rev 1.2).
-  * A packet whose total-chunk count disagrees with what is held for that
-    file id restarts that file (new version of the file on the spacecraft)
-    instead of being silently mixed in.
-  * SHA-256 + MD5 of every completed file are printed and written to
-    <out>/MANIFEST.txt for the test record.
+  * No fixed chunk size: files are assembled by concatenating chunks 1..N in order and
+    the observed chunk size is reported. A size mismatch between non-final chunks is
+    flagged (expected 50 000 for rev 1.2).
+  * A packet whose total-chunk count disagrees with what is held for that file id
+    restarts that file (new version on the spacecraft) instead of being mixed in.
+  * SHA-256 + MD5 of every completed file are printed and written to <out>/MANIFEST.txt
+    for the test record.
 """
 
 from __future__ import annotations

@@ -1,11 +1,11 @@
 """
 tle_manager.py - orbital elements by NORAD catalog number, OMM JSON first.
 
-Fixes vs v2:
-  * looks up by CATNR, not NAME ("ISS" matched UME, NORAD 8709, a 1976 satellite)
-  * OMM JSON (CelesTrak ran out of 5-digit catalog numbers 2026-07-11; new objects are OMM-only)
-  * stale = element EPOCH age, not download time; refreshes at most every 2 h (CelesTrak policy)
-  * cache keyed by catalog number; accepts old TLE-line entries too
+Changes from v2:
+  * looks up by CATNR, not name ("ISS" matched UME, NORAD 8709, a 1976 satellite)
+  * OMM JSON, since CelesTrak ran out of 5-digit catalog numbers 2026-07-11 and new objects are OMM-only
+  * stale means element epoch age, not download time. Refreshes at most every 2 h (CelesTrak policy)
+  * cache keyed by catalog number, old TLE-line entries still accepted
 """
 import json
 import logging

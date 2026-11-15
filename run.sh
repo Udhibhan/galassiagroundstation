@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# One command to run the whole ground station:
-#     ./run.sh                    real hardware: whatever is plugged in is detected (GNSS, SDR, gimbal via the Pi)
-#     ./run.sh --pi 192.168.1.50  also talk to the gimbal through the Pi relay (or:  GS_PI=192.168.1.50 ./run.sh)
-#     ./run.sh --sim              everything simulated, no hardware at all
-# It opens http://localhost:8080 in your browser. Ctrl-C stops it (motors stay ON and holding).
+# Run the whole ground station:
+#     ./run.sh                    real hardware, whatever is plugged in gets detected (GNSS, SDR, gimbal via the Pi)
+#     ./run.sh --pi 192.168.1.50  gimbal through the Pi relay (or GS_PI=192.168.1.50 ./run.sh)
+#     ./run.sh --sim              everything simulated, no hardware
+# Opens http://localhost:8080. Ctrl-C stops it; motors stay enabled and holding.
 cd "$(dirname "$0")"
 PY="${GS_PYTHON:-}"
 if [ -z "$PY" ]; then

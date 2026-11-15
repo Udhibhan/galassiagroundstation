@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-track_sun.py - headless: run ONE automatic Sun scan and update calibration.json (no UI).
+track_sun.py - headless: run one automatic Sun scan and update calibration.json (no UI).
 
     python3 track_sun.py           # needs HOME set, motors enable-able, SDR on the LNB chain
     python3 track_sun.py --sim --sim-clock 2026-11-06T09:00:00+08:00
 
-v2 tracked the Sun open-loop and asked a person to rotate the base by eye: that measures nothing.
+v2 tracked the Sun open-loop and asked a person to rotate the base by eye, which measures nothing.
 v3 cross-scans the Sun and finds the Ku-band noise peak with the B206mini (receive only), then
 refits yaw / tilt / encoder zeros (calibration.py). Same code as the UI's "Scan the Sun".
 """

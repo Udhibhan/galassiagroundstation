@@ -1,9 +1,4 @@
-"""
-config.py - single source of truth for the X-Y gimbal ground station (v3).
-
-Everything that was proven on the bench (2026-10-20, both motors) is written here as a
-constant, so no other file invents CAN numbers.
-"""
+"""Constants for the X-Y gimbal ground station. CAN numbers proven on the bench (2026-10-20, both motors) live here."""
 from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
@@ -11,12 +6,12 @@ from dataclasses import dataclass
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class CanBusConfig:
-    interface: str = "remote"        # "remote" (DEFAULT: Pi runs can_relay.py) | "canutils" | "socketcan" | "waveshare" | "sim"
+    interface: str = "remote"        # "remote" (default: Pi runs can_relay.py) | "canutils" | "socketcan" | "waveshare" | "sim"
     channel: str = "can0"            # SocketCAN (Pi CAN HAT)
     serial_port: str | None = None   # Waveshare USB-CAN-A (None = first CH340 found)
-    bitrate: int = 1_000_000         # eRob CAN is fixed at 1 Mbps (register 0x44). NOT 500k.
+    bitrate: int = 1_000_000         # eRob CAN is fixed at 1 Mbps (register 0x44), not 500k
     gap_s: float = 0.02              # pause before every request (drives cut out under heavy polling)
-    reply_timeout_s: float = 0.4     # wait at most this long for a reply of the right length (local CAN)
+    reply_timeout_s: float = 0.4     # max wait for a reply of the right length (local CAN)
     pi: str | None = None            # remote: "<host>[:7070]" of the Pi running can_relay.py
 
 
@@ -27,16 +22,16 @@ CAN_BUS = CanBusConfig()
 # ---------------------------------------------------------------------------
 RELAY_PORT = 7070
 RELAY_REPLY_TIMEOUT_S = 0.6          # network round trip + cansend
-RELAY_HEARTBEAT_S = 0.5              # app -> relay heartbeat
-RELAY_WATCHDOG_S = 2.0               # relay: nothing from the app for this long -> 0x84 STOP both nodes
+RELAY_HEARTBEAT_S = 0.5              # app to relay heartbeat
+RELAY_WATCHDOG_S = 2.0               # relay sends 0x84 STOP to both nodes if the app is silent this long
 
-COUNTS_PER_REV = 524_288             # output shaft, proven: 90 deg = 0x00020000. NOT 131072.
+COUNTS_PER_REV = 524_288             # output shaft, proven: 90 deg = 0x00020000 (not 131072)
 BOOT_WAIT_S = 8.0                    # wait after drive power-on before enabling (errors 0x1F/0x56)
 
 # ---------------------------------------------------------------------------
-# HOME = dish vertical, measured by hand on the bench (raw encoder counts, register 0x0002).
+# HOME = dish vertical, set by hand on the bench (raw encoder counts, register 0x0002).
 # Angle shown = wrap(raw - home) * 360 / 524288, wrap to +/-262144 counts.
-# X: a previous alignment gave 97775 counts instead (1.84 deg away) - being re-checked.
+# X: a previous alignment gave 97775 counts instead (1.84 deg away) - still being re-checked.
 # ---------------------------------------------------------------------------
 HOME_COUNTS = {"x": 100451, "y": 94947}
 
@@ -54,8 +49,8 @@ class AxisConfig:
     max_deg: float
     slew_speed_deg_s: float = 5.0    # proven bench speed (unloaded; not used in the test stage)
     track_speed_deg_s: float = 2.0   # profile speed for tracking steps (sats peak ~1.05 deg/s)
-    accel_deg_s2: float = 2.0        # heavy, top-heavy load: 2 deg/s^2 (0x00000419), NOT 10
-    current_limit_a: float = 15.0    # software stop above this |current| (60 % of the drive's continuous)
+    accel_deg_s2: float = 2.0        # top-heavy load, so 2 deg/s^2 (0x00000419), not 10
+    current_limit_a: float = 15.0    # software stop above this |current| (60 % of drive continuous)
 
 
 # X shaft runs East-West; it tilts the dish North/South.   +X = toward SOUTH (see kinematics.py)
@@ -67,61 +62,61 @@ Y_AXIS = AxisConfig("y", node_id=2, model="eRob90I-100", sign=+1, min_deg=-80.0,
 AXES = {"x": X_AXIS, "y": Y_AXIS}
 
 # ---------------------------------------------------------------------------
-# OFFSET DISH: the RF beam is NOT the dish face's mechanical normal. At HOME (dish face level) the beam
-# leans `deg` toward `toward` = the direction a positive/negative rotation of that axis would tilt it:
+# Offset dish: the RF beam is not the dish face normal. At HOME (face level) the beam
+# leans `deg` toward `toward`, the way a positive/negative rotation of that axis would tilt it:
 #   "+X" = toward South (like +X), "-X" = North, "+Y" = toward East (like +Y), "-Y" = West.
-# boresight_body = R(offset) . [0,0,1] is used everywhere (kinematics.py). deg = 0 (wedge fitted) = old maths.
+# boresight_body = R(offset) . [0,0,1] is used everywhere (kinematics.py). deg = 0 (wedge fitted) gives the old maths.
 # TODO (user): set "toward" after checking the dish, then set "confirmed": True (the UI warns until then).
 # ---------------------------------------------------------------------------
 BORESIGHT_OFFSET = {"deg": 22.0, "toward": "+X", "confirmed": True}   # confirmed 2026-11-11: manual Sun point X+19.3 Y-34.7 fits GNSS yaw within 1.7 deg
 
-# 3D view only (the picture on the web page, NOT the motors): flip an axis here if the model turns the wrong way
-# compared with the real dish. Which way the motors turn for a positive encoder value is still to be confirmed.
+# 3D view only (the web page picture, not the motors): flip an axis if the model turns the wrong way
+# against the real dish. Motor direction for a positive encoder value is still to be confirmed.
 VIEWER_FLIP = {"x": False, "y": False}
 
 # Before HOME is set the encoder zero is unknown (raw reads ~236-240 deg on the bench), so jogging
 # is limited to +/- this many degrees around wherever the axis was when the app started.
 UNHOMED_TRAVEL_DEG = 30.0
 
-# DISABLED (test stage): old hold-to-move jog
+# Disabled in the test stage: old hold-to-move jog
 # JOG_SPEEDS_DEG_S = (0.2, 0.5, 1.0)   # Test mode "very slow" choices
 # JOG_DEADMAN_S = 0.6                  # no key heartbeat for this long -> stop
 
 # ---------------------------------------------------------------------------
 # Test stage: manual latching WASD (gimbal.Gimbal)
 # ---------------------------------------------------------------------------
-# Accel/decel register value used on the bench, written RAW (counts/s^2). NOTE: 0x419 = 1049 counts/s^2
-# = 0.72 deg/s^2 if the unit is counts/s^2 like 0x8A speed (1 deg/s = 0x5B0 = 1456). It was described as
-# "2 deg/s^2"; 2 deg/s^2 would be 0xB61. Kept at the proven value until the unit is confirmed.
+# Accel/decel register value used on the bench, written raw. 0x419 = 1049 counts/s^2, which is
+# 0.72 deg/s^2 if the unit is counts/s^2 like the 0x8A speed (1 deg/s = 0x5B0 = 1456). It was described as
+# "2 deg/s^2" (that would be 0xB61). Kept at the proven value until the unit is confirmed.
 MANUAL_ACCEL_COUNTS = 0x00000419
 MANUAL_SPEEDS_DEG_S = (0.5, 1.0, 1.5)
 MANUAL_DEFAULT_SPEED_DEG_S = 1.0     # 0x000005B0
 WAKE_STEP_DEG = 0.5                  # Start: +0.5 deg then back (a 0.05 deg move made Y drop out)
-MIN_MOVE_DEG = 0.5                   # never send a latched move shorter than this
-SETUP_TO_ENABLE_S = 1.0              # >= 1 s between motor-off/setup and the next enable (Y dropped out at 0.3 s)
-POLL_PERIOD_S = 1.0                  # per axis: position + current + state once a second (<= 6 reads/s total)
+MIN_MOVE_DEG = 0.5                   # no latched move shorter than this
+SETUP_TO_ENABLE_S = 1.0              # at least 1 s between motor-off/setup and the next enable (Y dropped out at 0.3 s)
+POLL_PERIOD_S = 1.0                  # per axis: position + current + state once a second (max 6 reads/s total)
 SLOW_POLL_PERIOD_S = 10.0            # temperature / bus voltage
 STOP_CHECK_S = 0.6                   # read 0x010C this long after 0x84 STOP (plus the decel time)
 START_RETRY_S = 1.0                  # retry START refused with 0x15 (still decelerating) for this long
-PAGE_DEADMAN_S = 2.0                 # no heartbeat from the web page for this long -> STOP both
+PAGE_DEADMAN_S = 2.0                 # no heartbeat from the web page for this long: STOP both
 WAKE_TIMEOUT_S = 8.0                 # each wake move must reach state 4 within this
 HOME_TIMEOUT_S = 240.0               # Home (up to 160 deg at 0.5 deg/s) must finish within this
 
 # goto / track (Home, Sun steps). One relative step per axis at a time (START is refused while moving),
-# aimed at where the target will be when the step ends. Tracking steps are allowed below MIN_MOVE_DEG
+# aimed at where the target will be when the step ends. Tracking steps below MIN_MOVE_DEG are fine
 # once the motor is holding (bench rule 4).
 TRACK_STEP_PERIOD_S = 0.5            # at most one step per axis every 0.5 s
 TRACK_DEADBAND_DEG = 0.02            # no step for errors below this
-TRACK_SETTLE_S = 0.15                # after a step's planned end: read the position, then the next step
+TRACK_SETTLE_S = 0.15                # after a step ends: read position, then the next step
 GOTO_DONE_DEG = 0.02                 # goto finished when both axes are this close and still
 TRACK_POLL_PERIOD_S = 2.0            # while tracking: current + state every 2 s per axis (positions come
-                                     # from the step reads) -> <= ~6 reads/s in total
+                                     # from the step reads), about 6 reads/s total at most
 
 # Control loop
 TICK_S = 0.25                        # controller thread period
 TRACK_PERIOD_S = 0.5                 # one relative step per axis every 0.5 s while tracking
 TRACK_DEADBAND_DEG = 0.02
-TRACK_ADAPTIVE_SPEED = True          # write 0x8A while ON each step for smooth motion; auto-falls back
+TRACK_ADAPTIVE_SPEED = True          # write 0x8A while on each step for smooth motion; falls back
                                      # to a fixed 2 deg/s step if the drive refuses (bench test T5)
 STATUS_EVERY_TICKS = 8               # read state/error registers every 2 s (keeps CAN quiet)
 
@@ -146,7 +141,7 @@ SITE = SiteConfig()
 @dataclass(frozen=True)
 class GnssConfig:
     rover_port: str | None = None    # heading board, POWER+GPS USB -> /dev/ttyACM* (None = auto)
-    # Baseline (base antenna -> rover antenna) direction in the DISH frame at HOME:
+    # Baseline (base antenna to rover antenna) direction in the dish frame at HOME:
     # (E, N, U) = (1, 0, 0) means the bar is parallel to the X shaft, rover antenna on the east end.
     bar_body: tuple = (0.0, 1.0, 0.0)    # rover on the -X side (see GNSS_BAR_ROVER_SIDE); was (1,0,0)
     pose_settle_s: float = 3.0
@@ -156,12 +151,13 @@ class GnssConfig:
 
 GNSS = GnssConfig()
 
-# Sun method 1: the heading bar sits on the BASE (does not move with X/Y). GNSS_BAR_ROVER_SIDE = which mount
-# direction the baseline (base antenna -> rover antenna, as gnss_check.py prints it) points along, at yaw 0:
-#   "+Y" = East (90)   "-Y" = West (270)   "+X" = South (180)   "-X" = North (0)   -> psi = heading - that angle.
+# Sun method 1: the heading bar sits on the base (does not move with X/Y). GNSS_BAR_ROVER_SIDE is the mount
+# direction the baseline (base antenna to rover antenna, as gnss_check.py prints it) points along, at yaw 0:
+#   "+Y" = East (90)   "-Y" = West (270)   "+X" = South (180)   "-X" = North (0)
+# psi = heading - that angle.
 # A number is also accepted: the bar angle in degrees in that same frame (for a bar not parallel to an axis).
-# 2026-11-11 field check: GNSS heading 251 deg, and D (+Y) tilts the dish toward ~330 deg (iPhone compass)
-#   -> psi ~ -120 deg -> bar ~ 11 deg ~ "-X" (bar along the X shaft, rover antenna on the -X side).
+# 2026-11-11 field check: GNSS heading 251 deg, D (+Y) tilts the dish toward ~330 deg (iPhone compass),
+# so psi ~ -120 deg and bar ~ 11 deg, i.e. "-X" (bar along the X shaft, rover antenna on the -X side).
 GNSS_BAR_ROVER_SIDE = "-X"           # "+Y" | "-Y" | "+X" | "-X" | degrees   (was "+Y")
 _BAR_DEG = {"+Y": 90.0, "-Y": 270.0, "+X": 180.0, "-X": 0.0}
 
@@ -176,7 +172,7 @@ GNSS_HEADING_AVERAGE_S = 60.0        # average NAV-RELPOSNED heading (carrSoln =
 
 
 # ---------------------------------------------------------------------------
-# SDR power meter for sun scans (Ettus B206mini, RECEIVE ONLY)
+# SDR power meter for sun scans (Ettus B206mini, receive only)
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class SdrConfig:
@@ -185,10 +181,10 @@ class SdrConfig:
     sky_freq_hz: float = 14.0e9      # used for lambda in G/T
     rate_hz: float = 4e6             # 4 Msps
     gain_db: float = 20.0            # start value; chain gives ~+40 dB noise rise; keep headroom
-    antenna: str = "RX2"             # RX2 only. TX/RX port stays unconnected. Input <= -15 dBm.
-    samples: int = 200_000           # 50 ms at 4 Msps = one reading (mean |x|^2, kept LINEAR)
+    antenna: str = "RX2"             # RX2 only, TX/RX port stays unconnected. Input max -15 dBm.
+    samples: int = 200_000           # 50 ms at 4 Msps = one reading (mean |x|^2, kept linear)
     reading_period_s: float = 0.1    # ~10 readings/s
-    saturation_fs: float = 0.7       # any |sample| above this -> "reduce gain", result invalid
+    saturation_fs: float = 0.7       # any |sample| above this means "reduce gain", result invalid
 
 
 SDR = SdrConfig()
@@ -207,11 +203,11 @@ class SunScanConfig:
     fine_step_deg: float = 0.2
     dwell_s: float = 0.35            # settle after each step before measuring
     min_rise_db: float = 1.0         # below this, "no sun found"
-    max_on_sun_s: float = 90.0       # LNB heat: never stay near the sun longer than this per scan
+    max_on_sun_s: float = 90.0       # LNB heat: don't stay near the sun longer than this per scan
     beamwidth_deg: float = 1.7       # first guess (0.9 m dish @ 14 GHz); the fit measures it
 
 
-SUN_SCAN = SunScanConfig()          # used by the DISABLED (test stage) calibration.py only
+SUN_SCAN = SunScanConfig()          # only used by calibration.py (disabled in the test stage)
 
 
 # ---------------------------------------------------------------------------
@@ -253,15 +249,15 @@ SUN_JOB = SunJobConfig()
 
 
 # ---------------------------------------------------------------------------
-# Test mode (press "Run test": link, motors, SDR, GNSS, then point at true north)
+# Test mode ("Run test": link, motors, SDR, GNSS, then point at true north)
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class TestConfig:
-    motor_move_deg: float = 5.0      # each axis: HOME -> +d -> -d -> HOME (small: the dish is top-heavy)
-    motor_tol_deg: float = 0.15      # "reached" = within this of the target when the move ends
+    motor_move_deg: float = 5.0      # each axis goes HOME, +d, -d, HOME (small: the dish is top-heavy)
+    motor_tol_deg: float = 0.15      # "reached" means within this of the target when the move ends
     move_timeout_s: float = 90.0
     sdr_seconds: float = 6.0         # how long the SDR readings are collected
-    sdr_min_rate_hz: float = 4.0     # fewer readings/s than this = warn (nominal ~10/s)
+    sdr_min_rate_hz: float = 4.0     # warn below this many readings/s (nominal ~10/s)
     gnss_timeout_s: float = 300.0    # wait this long for RTK FIXED before giving up
     gnss_heading_avg_s: float = 20.0 # average the RTK FIXED heading this long (Sun method 1 uses 60 s)
     north_az_deg: float = 0.0        # true north ...
@@ -277,7 +273,7 @@ TEST = TestConfig()
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class DemodConfig:
-    # How it is run: ./demod_env.sh python3 demod/unified/rx_cli.py ... (RECEIVE ONLY: only rx_cli.py is ever started)
+    # How it is run: ./demod_env.sh python3 demod/unified/rx_cli.py ... (receive only, only rx_cli.py is ever started)
     env_script: str = "demod_env.sh"                 # relative to this folder
     rx_cli: str = "demod/unified/rx_cli.py"          # relative to this folder
     out_root: str = "Received"                       # decoded images / files: <out_root>/run_<UTC>/ (relative to this folder)
@@ -285,14 +281,14 @@ class DemodConfig:
     preset: str = "linkx2"                           # ops20 = 20 MBd, linkx2 = 2 MBd, field1 = 1 MBd (was ops20; linkx2 decoded images 2026-11-11)
     modcod: str = "6"                                # Link X MODCOD number (or e.g. "QPSK2/3"); "" = preset. 6 = what decoded on 2026-11-11
     # Radio (B206mini, RX2 only). 1195e6 is the validated IF of the Galassia-5 receiver.
-    # CHECK: its default downlink RF is 13.95 GHz, i.e. an LNB LO of 12.755 GHz. config.SDR assumes LO 12.8 GHz and IF 1.2 GHz.
+    # Check: its default downlink RF is 13.95 GHz, i.e. an LNB LO of 12.755 GHz. config.SDR assumes LO 12.8 GHz and IF 1.2 GHz.
     centre_freq_hz: float = 1150e6                   # was 1195e6; 1150e6 decoded images in the GNU Radio GUI 2026-11-11 (LNB LO 12.8 GHz)
     rf_freq_hz: float = 13.95e9
     rx_gain_db: float = 30.0                         # the power meter uses SDR.gain_db; the demod wants more or less gain: tune on a pass
     antenna: str = "RX2"
     stack: str = "auto"                              # GSSE stack: auto | rev1.0 | rev1.2
     stats_every_s: float = 0.5                     # status line period: the power trace on the page updates about this often
-    stop_grace_s: float = 25.0                       # SIGINT -> flush -> SIGTERM -> kill
+    stop_grace_s: float = 25.0                       # SIGINT, flush, SIGTERM, kill
 
 
 DEMOD = DemodConfig()
@@ -314,7 +310,7 @@ class TrackingConfig:
 
 TRACKING = TrackingConfig()
 
-# Targets by NORAD catalog number (names are ambiguous: "ISS" once matched UME, NORAD 8709).
+# Targets by NORAD catalog number (names are ambiguous, "ISS" once matched UME, NORAD 8709).
 TARGETS = {
     56309: "LUMELITE-4",
     52935: "DS-EO",

@@ -1,33 +1,28 @@
-"""
-GSSE - GomSpace Stream Encapsulation.
+"""GSSE - GomSpace Stream Encapsulation.
 
-Reference: GomSpace ICD 1045318 "NanoCom Link S, X, SX RF Interface",
-appendix A. Appendix A is identical in rev 1.0 and rev 1.2, so this module
-applies unchanged to both the current Link X (rev 1.0) and the later SX (rev 1.2).
-What GSSE *carries* differs between revisions - see gs_rx.py --stack.
+Ref: GomSpace ICD 1045318 "NanoCom Link S, X, SX RF Interface", appendix A. It is the same
+in rev 1.0 and rev 1.2, so this module serves both the current Link X and the later SX.
+What GSSE carries differs between revisions, see gs_rx.py --stack.
 
-GSSE turns a *continuous byte stream* (the concatenated DVB-S2 baseband frame
-data fields on X-band, or the CCSDS 131.0-B-3 code block stream on S-band) back
-into discrete packets.
+GSSE turns a continuous byte stream (the concatenated DVB-S2 BBFRAME data fields on
+X-band, or the CCSDS 131.0-B-3 code block stream on S-band) back into discrete packets.
 
 Transmit chain (ICD figure A.1):
 
-    payload -> append CRC-32 (4 bytes) -> byte-stuff -> append TAIL -> prepend HEAD
+    payload, append CRC-32 (4 bytes), byte-stuff, append TAIL, prepend HEAD
 
-Receive chain is the exact reverse:
-
-    hunt for HEAD -> buffer until TAIL -> de-stuff -> check CRC -> payload
+Receive is the reverse: hunt for HEAD, buffer until TAIL, de-stuff, check CRC.
 
 v2 changes (see CHANGES.md):
-  * stuff/destuff/CRC run at C speed (bytes.replace / binascii) - rev 1.0
-    GSUFTP packets are ~10 MB, and the v1 pure-Python loops took tens of
-    seconds per frame. The v1 loops are kept as *_reference for the tests.
-  * GsseDeframer re-synchronises on a new HEAD seen inside an open frame
-    (stuffing guarantees HEAD cannot occur inside a valid frame), so a lost
-    TAIL no longer costs the following good frame too.
-  * GsseDeframer default max_frame raised to 16 MiB (v1: 256 KiB, which
-    silently discarded every rev 1.0 GSUFTP packet as "lost TAIL").
-  * Incremental TAIL search (no O(n^2) rescans of a growing 10 MB buffer).
+  * stuff/destuff/CRC run at C speed (bytes.replace / binascii). Rev 1.0 GSUFTP packets
+    are ~10 MB and the v1 pure-Python loops took tens of seconds per frame. The v1 loops
+    stay as *_reference for the tests.
+  * GsseDeframer re-syncs on a new HEAD seen inside an open frame (stuffing guarantees
+    HEAD cannot occur inside a valid frame), so a lost TAIL no longer costs the next good
+    frame too.
+  * GsseDeframer default max_frame raised to 16 MiB (v1: 256 KiB, which silently dropped
+    every rev 1.0 GSUFTP packet as "lost TAIL").
+  * Incremental TAIL search, no O(n^2) rescans of a growing 10 MB buffer.
 """
 
 from __future__ import annotations

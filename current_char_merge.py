@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Merge two current-characterisation runs into one run folder for current_char_report.py.
 
-Use when a run aborted part-way and a later run finished the rest, e.g. 14 Nov 2026: the X sweep (3a) came
-from run A (which aborted in 3b on a drive drop-out) and everything else from run B.
+For when a run aborted part-way and a later run did the rest. On 14 Nov 2026 the X sweep (3a) came from
+run A (which aborted in 3b when a drive dropped out) and everything else from run B.
 
     python3 current_char_merge.py data/current_char/<A> data/current_char/<B> --from-a 3a
     -> data/current_char/<B>_merged/   (then: python3 current_char_report.py data/current_char/<B>_merged ...)
 
-Rows of A whose phase is in --from-a are kept, everything of B is kept; B's times are shifted to follow A's,
-so t_rel_s stays increasing. The originals are not changed. plan.json is B's, with "merged_from" added.
+Rows of A whose phase is in --from-a are kept, plus all of B. B's times are shifted to follow A's so
+t_rel_s keeps increasing. The originals are untouched. plan.json is B's with "merged_from" added.
 """
 import argparse
 import csv

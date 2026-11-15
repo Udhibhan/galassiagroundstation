@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-can_relay.py - runs ON THE RASPBERRY PI next to the gimbal. Python standard library only.
+can_relay.py - runs on the Raspberry Pi next to the gimbal. Standard library only.
 
-It relays CAN frames between can0 and ONE laptop (app.py --pi <this-pi>) over TCP, using can-utils
-(`candump` / `cansend`: proven on this Pi, python-can was not). It knows nothing about angles:
-soft limits etc. are enforced in the app.
+Relays CAN frames between can0 and one laptop (app.py --pi <this-pi>) over TCP, using can-utils
+(candump / cansend; python-can didn't work on this Pi). It knows nothing about angles, soft limits
+are enforced in the app.
 
     python3 can_relay.py --allow <laptop-ip>          # serve on port 7070
     python3 can_relay.py --selftest                   # read 0x0043 (node id) from node 1 and node 2, exit
@@ -20,8 +20,8 @@ Rules enforced here:
   * TX only to 0x641 (node 1, X) and 0x642 (node 2, Y).
   * Writes to 0x0050 / 0x0052 / 0x0053 / 0x00E8 (drive flash / limits) are refused.
   * One client at a time (--allow restricts which IPs may connect).
-  * WATCHDOG (does not depend on the network): if the client sends nothing for 2.0 s, or disconnects,
-    the relay itself sends 0x84 STOP to node 1 and node 2, logs it and keeps running.
+  * Watchdog, independent of the network: if the client sends nothing for 2.0 s, or disconnects,
+    the relay sends 0x84 STOP to node 1 and node 2 itself, logs it and keeps running.
 """
 import argparse
 import json
@@ -50,7 +50,7 @@ log = logging.getLogger("can_relay")
 
 
 def parse_candump(line: str):
-    """'(1699999999.123456) can0 5C1#0000123E' -> (t, 0x5C1, bytes). Remote/FD frames -> None."""
+    """'(1699999999.123456) can0 5C1#0000123E' gives (t, 0x5C1, bytes). Remote/FD frames give None."""
     m = _CANDUMP.match(line.strip())
     if not m or len(m.group(4)) % 2:
         return None
@@ -174,7 +174,7 @@ class Relay:
         self._send_client({"op": "rx", "id": f"{can_id:03X}", "data": data.hex().upper(), "t": t})
 
     def stop_both(self, why):
-        """0x84 STOP to node 1 and node 2. Never raises."""
+        """0x84 STOP to node 1 and node 2. Doesn't raise."""
         self.stops += 1
         msg = f"WATCHDOG: {why} -> 0x84 STOP to node 1 (X) and node 2 (Y)"
         log.warning(msg)
@@ -182,7 +182,7 @@ class Relay:
         for can_id, data in STOP_FRAMES:
             try:
                 self.bus.send(can_id, data)
-            except Exception as e:                       # keep going: try the other node too
+            except Exception as e:                       # still try the other node
                 log.error("STOP to 0x%03X failed: %s", can_id, e)
 
     # ---- network side
@@ -197,7 +197,7 @@ class Relay:
             with self._wlock:
                 s.sendall(line)
         except OSError:
-            pass                                         # the reader notices the dead socket
+            pass                                         # reader notices the dead socket
 
     def serve_forever(self):
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -310,14 +310,14 @@ class Relay:
             self._send_client({"op": "err", "msg": str(e), "id": m.get("id"), "data": m.get("data")})
 
     def _watchdog(self):
-        """Own thread: fires even if the network or the client thread hangs."""
+        """Own thread, so it still fires if the network or client thread hangs."""
         while not self._stop.is_set():
             time.sleep(0.1)
             with self._clock:
                 c, armed, age = self.client, self.armed, time.monotonic() - self.last_rx
                 fire = c is not None and armed and age > self.watchdog_s
                 if fire:
-                    self.armed = False                   # once per silence; re-armed by the next line
+                    self.armed = False                   # once per silence, re-armed by the next line
             if fire:
                 self.stop_both(f"nothing from {c[1][0]} for {age:.1f} s")
             if not self.bus.alive():

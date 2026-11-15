@@ -1,23 +1,21 @@
-"""
-Minimal IPv4 + UDP parsing, with fragment reassembly.
+"""Minimal IPv4 + UDP parsing, with fragment reassembly.
 
-Only used for the rev 1.2 stack (RF ICD 1045318 rev 1.2 fig 3.1: GSUFTP over
-UDP over IPv4 over GSSE). The rev 1.0 Link X puts GSUFTP packets directly into
-GSSE and never reaches this module - see gs_rx.py --stack.
+Only the rev 1.2 stack uses this (RF ICD 1045318 rev 1.2 fig 3.1: GSUFTP over UDP over
+IPv4 over GSSE). The rev 1.0 Link X puts GSUFTP packets straight into GSSE and never gets
+here, see gs_rx.py --stack.
 
-Why reassembly: rev 1.2 GSUFTP sends 50 000-byte chunks in one UDP datagram,
-larger than the radio interface MTU, so each chunk arrives as several IP
-fragments. Lose one fragment and the whole chunk is lost.
+Why reassembly: rev 1.2 GSUFTP sends 50 000-byte chunks in one UDP datagram, larger than
+the radio interface MTU, so each chunk arrives as several IP fragments. Lose one fragment
+and the whole chunk is lost.
 
 v2 changes (see CHANGES.md):
-  * UDP checksum verified when non-zero (pseudo-header included). The IP ID
-    is only 16 bits and GSUFTP loops for a whole pass, so a stale fragment
-    of an earlier datagram can be glued into a later one with the same ID;
-    v1 would have handed that corrupted chunk to GSUFTP. The UDP checksum
-    catches it.
-  * Fragment expiry counted in packets fed, not wall-clock seconds, so a file
-    replay gives the same result however fast it runs.
-  * Pending-reassembly table capped.
+  * UDP checksum is verified when non-zero (pseudo-header included). The IP ID is only
+    16 bits and GSUFTP loops for a whole pass, so a stale fragment of an earlier datagram
+    can get glued into a later one with the same ID. v1 would have handed that corrupted
+    chunk to GSUFTP; the checksum catches it.
+  * Fragment expiry is counted in packets fed, not wall-clock seconds, so a file replay
+    gives the same result however fast it runs.
+  * Pending-reassembly table is capped.
 """
 
 from __future__ import annotations

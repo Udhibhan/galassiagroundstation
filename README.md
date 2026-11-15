@@ -78,6 +78,7 @@ The 3D model is `ui/model/gimbal.glb` (+ `gimbal_meta.json`); three.js is vendor
 | `demod/unified/` | Galassia-5 DVB-S2 RX/TX flowgraphs, CLIs and the `g5gs` decoder package |
 | `gr_dvbs2rx/` | Prebuilt patched gr-dvbs2rx (Python 3.14, x86_64), used by `demod_env.sh` |
 | `data/current_char/` | The four hardware runs used for the final current result, and the merged `20261114_combined/` |
+| `legacy/` | The full v3 gimbal controller, app, selftest and acceptance run that are switched off for the test stage (not imported) |
 | `docs/` | UI screenshots; `docs/notes/` holds the current-characterisation handoff and the v2→v3 upgrade notes |
 
 Not in git (see `.gitignore`): `calibration.json` and `omm_cache.json` (site-specific, written at runtime), `logs/`, `Received/` (IQ recordings), backups, zips and the UREx report.

@@ -1,8 +1,11 @@
 """GSSE / GSUFTP decoder inside the flowgraph (gs_rx v2.2 Pipeline, vendored in g5gs/gsrx).
 
-Input: the BBFRAME byte stream from bbdescrambler_bb (K_BCH/8 bytes per frame).
-  BBHEADER strip + confirmed re-sync -> GSSE deframe + CRC-32 -> rev 1.0: GSUFTP directly /
-  rev 1.2: IPv4 -> UDP -> GSUFTP -> files in out_dir (+ MANIFEST.txt, SHA-256/MD5)
+Input is the BBFRAME byte stream from bbdescrambler_bb (K_BCH/8 bytes per frame).
+Steps: strip BBHEADER (with confirmed re-sync), GSSE deframe + CRC-32, then
+  rev 1.0: GSUFTP directly
+  rev 1.2: IPv4, UDP, GSUFTP
+and write the files to out_dir (+ MANIFEST.txt, SHA-256/MD5).
+
 Optional side outputs:
   bbframe_file  raw BBFRAMEs (re-run gs_rx.py --from-file later)
   udp_forward   host:port, one BBFRAME per datagram (dvb-gse "UDP complete" / recv_dir for

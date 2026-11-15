@@ -1,17 +1,17 @@
 """
-calibration.py - pointing calibration: HOME + GNSS dual-antenna poses + auto sun scans.
+calibration.py - pointing calibration: HOME, GNSS dual-antenna poses, auto Sun scans.
 
-What is solved (see kinematics.py): yaw (north offset), tilt_n (mount roll) and x0, y0 (encoder zeros).
-A mount tilt about East is identical to an X zero offset, so x0 carries it.
-  1. HOME       you jog the dish vertical (spirit level on the dish back) -> raw encoder zeros.
-  2. GNSS       the gimbal visits 5 poses; at each, the 1 m antenna bar's heading/pitch is averaged.
-                Gives yaw to ~0.5 deg + tilts, works in any weather.          -> status "coarse"
-  3. SUN SCANS  the dish tracks the Sun while cross-scanning; the Ku-band noise peak (LNB + SDR)
-                gives the true boresight to ~0.05 deg. 2+ scans at different times. -> status "fine"
-All measurements go into one weighted least-squares fit, re-run after every new measurement.
+Solves for yaw (north offset), tilt_n (mount roll) and x0, y0 (encoder zeros), see kinematics.py.
+A mount tilt about East looks the same as an X zero offset, so x0 absorbs it.
+  1. HOME      jog the dish vertical (spirit level on the dish back) to get the raw encoder zeros.
+  2. GNSS      the gimbal visits 5 poses and the 1 m antenna bar's heading/pitch is averaged at each.
+               Gives yaw to ~0.5 deg plus tilts, works in any weather. Status "coarse".
+  3. Sun scans the dish tracks the Sun while cross-scanning. The Ku-band noise peak (LNB + SDR) gives
+               the true boresight to ~0.05 deg. Needs 2+ scans at different times. Status "fine".
+Every measurement goes into one weighted least-squares fit, re-run after each new one.
 
-The Sun is never "parked" on: the dish focuses heat on the LNB. Each scan limits time near the
-Sun (SUN_SCAN.max_on_sun_s) and ends pointing 10 deg away.
+Don't park on the Sun, the dish focuses heat on the LNB. Each scan limits time near the Sun
+(SUN_SCAN.max_on_sun_s) and ends pointing 10 deg away.
 """
 import json
 import logging
@@ -31,12 +31,12 @@ log = logging.getLogger(__name__)
 
 PRIOR_SIGMA = {"yaw": 30.0, "tilt_n": 3.0, "x0": 5.0, "y0": 5.0}
 # tilt_e is not fitted: a mount tilt about East is the same rotation as an X encoder offset
-# (Rx(tilt_e)·Rx(x - x0)), so the two can't be told apart; x0 absorbs it.
+# (Rx(tilt_e)·Rx(x - x0)), so the two can't be told apart and x0 absorbs it.
 SOLVE = ("yaw", "tilt_n", "x0", "y0")
 SUN_SIGMA_DEG = 0.05
 
 
-# =================================================================== solver
+# solver
 def _residuals(p, gnss, suns, bar_body, gnss_sigma):
     cal = dict(K.ZERO_CAL, **dict(zip(SOLVE, p)))
     r = []
@@ -54,7 +54,7 @@ def _residuals(p, gnss, suns, bar_body, gnss_sigma):
 
 def solve(gnss: list, suns: list, start: dict | None = None,
           bar_body=config.GNSS.bar_body, gnss_sigma=config.GNSS.heading_sigma_deg) -> dict:
-    """Levenberg-Marquardt, numeric Jacobian. Returns params, 1-sigma, per-measurement residuals."""
+    """Levenberg-Marquardt with a numeric Jacobian. Returns params, 1-sigma, per-measurement residuals."""
     p = np.array([(start or K.ZERO_CAL).get(k, 0.0) for k in SOLVE], float)
     lam = 1e-3
     f = lambda q: _residuals(q, gnss, suns, bar_body, gnss_sigma)
@@ -85,7 +85,7 @@ def solve(gnss: list, suns: list, start: dict | None = None,
             "rms_gnss": float(np.sqrt(np.mean(np.square(res_g)))) if res_g else None}
 
 
-# =================================================================== store
+# store
 class Calibration:
     def __init__(self, path=config.CALIBRATION_PATH):
         self.path = path
@@ -163,9 +163,9 @@ class Calibration:
                                for s in d["sun_points"]]}
 
 
-# =================================================================== jobs
+# jobs
 class Job:
-    """A calibration routine running in its own thread; the UI polls .progress."""
+    """A calibration routine running in its own thread. The UI polls .progress."""
     kind = "job"
 
     def __init__(self, gimbal, cal: Calibration, site):
@@ -294,7 +294,7 @@ class SunScanJob(Job):
                 break
         time.sleep(config.SUN_SCAN.dwell_s)
         p = self.sensor.power_db()
-        if math.hypot(dx, dy) < 1.5:                       # Sun inside ~the main beam: LNB heats
+        if math.hypot(dx, dy) < 1.5:                       # Sun inside about the main beam: LNB heats
             self.near_s += time.monotonic() - t0
             if self.near_s > config.SUN_SCAN.max_on_sun_s:
                 raise RuntimeError("heat limit: too long near the Sun this scan - try again in 10 min")
@@ -363,8 +363,8 @@ class SunScanJob(Job):
 
         # 2. coarse cross-scans (alternate X/Y until both peaks found), then fine
         centre = [0.0, 0.0]
-        # 2. fine cross-scan straight away if GNSS/Sun already gave a decent prior; otherwise (or if the
-        #    fine scan finds nothing) search with wider coarse cuts first. Fewer points = less LNB heating.
+        # 2. fine cross-scan straight away if GNSS/Sun already gave a decent prior, otherwise (or if the
+        #    fine scan finds nothing) search with wider coarse cuts first. Fewer points means less LNB heating.
         centre = [0.0, 0.0]
         res = None
         if self.cal.status in ("coarse", "fine"):

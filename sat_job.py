@@ -1,16 +1,20 @@
 """
-sat_job.py - Satellite tracking, one button, narrated (the Satellite tab).
+sat_job.py - satellite tracking, one button, narrated (the Satellite tab).
 
-    Choose a satellite (or "auto": the pass that is in progress / starts next) and press Track. The worker then:
-      1. picks the pass (rise / culmination / set from the orbital elements)
-      2. gets fresh elements from CelesTrak (cached copy if offline; refuses elements older than TRACKING.tle_max_epoch_age_days)
-      3. finds true north: reuses the mount yaw from an earlier Sun / Test run, otherwise waits for GNSS RTK FIXED and averages the heading
-      4. starts the motors if they are off
-      5. precomputes the whole pass as X/Y axis angles and checks it against the axis limits and speeds BEFORE moving
-      6. slews to the rise point, waits for AOS, tracks until LOS, then returns to HOME
+Pick a satellite (or "auto": the pass in progress or the next one) and press Track. The worker:
+  1. picks the pass (rise / culmination / set from the orbital elements)
+  2. gets fresh elements from CelesTrak (cached copy if offline; refuses elements older than
+     TRACKING.tle_max_epoch_age_days)
+  3. finds true north: reuses the mount yaw from an earlier Sun / Test run, else waits for GNSS RTK FIXED
+     and averages the heading
+  4. starts the motors if they are off
+  5. precomputes the whole pass as X/Y axis angles and checks it against axis limits and speeds
+     before anything moves
+  6. slews to the rise point, waits for AOS, tracks until LOS, then goes back to HOME
 
-Like the Sun and Test jobs it runs in its own thread and NEVER touches CAN: it only gives the gimbal thread goto / track
-targets. The page deadman (no heartbeat for 2 s) and STOP stop it like any other goto/track. RECEIVE ONLY: nothing is transmitted.
+Like the Sun and Test jobs it runs in its own thread and never touches CAN, it only gives the gimbal
+thread goto / track targets. The page deadman (no heartbeat for 2 s) and STOP stop it like any other
+goto/track. Receive only, nothing is transmitted.
 """
 import logging
 import threading
@@ -46,11 +50,11 @@ class SatSession:
     def __init__(self, gimbal, gnss, site_fn, mount_fn, sim=False, rx=None):
         self.g = gimbal
         self.gnss = gnss
-        self.site_fn = site_fn              # -> (lat, lon, source)
-        self.mount_fn = mount_fn            # -> mount yaw in degrees, or None if not known yet
+        self.site_fn = site_fn              # returns (lat, lon, source)
+        self.mount_fn = mount_fn            # returns mount yaw in degrees, or None if not known yet
         self.sim = sim
-        self.rx = rx                          # .start(opts) / .stop(why) / .busy(): the receiver (None = no receiving)
-        self.rx_opts = None                   # set per run from the page; None = track only
+        self.rx = rx                          # .start(opts) / .stop(why) / .busy(), the receiver (None = no receiving)
+        self.rx_opts = None                   # set per run from the page, None = track only
         self._rx_on = False
         self.tle = TleManager()
         self.targets = dict(config.TARGETS)
@@ -69,7 +73,7 @@ class SatSession:
         self.prog = self._fresh()
         threading.Thread(target=self._predict_loop, name="sat-predict", daemon=True).start()
 
-    # ------------------------------------------------------------------ state
+    # state
     @staticmethod
     def _fresh():
         return {"state": "idle", "step": "", "msg": "", "log": [], "sat": None, "t0": None, "t1": None}
@@ -99,7 +103,7 @@ class SatSession:
         lat, lon, _ = self.site_fn()
         return config.SiteConfig(lat, lon, config.SITE.elevation_m, "site")
 
-    # ------------------------------------------------------------------ predictions (background, network optional)
+    # predictions (background, network optional)
     def _predict_loop(self):
         while True:
             try:
@@ -140,7 +144,7 @@ class SatSession:
 
     def add_target(self, catnr: int):
         catnr = int(catnr)
-        self.tle.refresh(catnr, force=True)                  # raises if CelesTrak has nothing / is unreachable
+        self.tle.refresh(catnr, force=True)                  # raises if CelesTrak has nothing or is unreachable
         name = self.tle.get_satellite(catnr).name
         self.targets[catnr] = name
         self._pred_at = 0.0
@@ -148,8 +152,8 @@ class SatSession:
         return name
 
     def feasible(self, p, yaw):
-        """The longest stretch of this pass the dish can follow (reachable sky, ±80° travel, axis speeds).
-        -> {"ok", "why", "t0", "t1", "frac"}; t0/t1 are datetimes. Cached per pass + yaw."""
+        """Longest stretch of this pass the dish can follow (reachable sky, +/-80 deg travel, axis speeds).
+        Returns {"ok", "why", "t0", "t1", "frac"}, t0/t1 are datetimes. Cached per pass + yaw."""
         key = (p.catnr, p.rise.isoformat(), round(yaw, 1))
         if key not in self._feas_cache:
             try:
@@ -226,7 +230,7 @@ class SatSession:
         with self.lock:
             return [p for p in self.passes if p.set > now + timedelta(seconds=30) and (catnr is None or p.catnr == int(catnr))]
 
-    # ------------------------------------------------------------------ control
+    # control
     def start(self, catnr=None, rx_opts=None):
         if self.busy():
             raise RuntimeError("satellite tracking is already running: press Stop first")
@@ -263,7 +267,7 @@ class SatSession:
             self._check()
             time.sleep(min(0.1, max(0.0, end - time.monotonic())))
 
-    # ------------------------------------------------------------------ worker
+    # worker
     def _worker(self, catnr):
         try:
             self._run(catnr)
@@ -280,7 +284,7 @@ class SatSession:
             self.prog["t1"] = clock.now().isoformat(timespec="seconds")
 
     def _rx_begin(self, sat, p):
-        """Start taking in data as the satellite appears (the receiver needs a few seconds to open the radio and lock)."""
+        """Start receiving as the satellite appears (the receiver needs a few seconds to open the radio and lock)."""
         if self._rx_on or self.rx_opts is None:
             return
         self._rx_on = True                                   # one attempt per pass
@@ -407,7 +411,7 @@ class SatSession:
                 last = time.monotonic()
                 self._say("Waiting for the satellite to rise", f"AOS in {(start - clock.now()).total_seconds():.0f} s")
             time.sleep(0.2)
-        self._rx_begin(sat, p)                                 # (no-op if it already started during the wait)
+        self._rx_begin(sat, p)                                 # no-op if it already started during the wait
         self._say("Tracking", f"{p.name} until {loc(stop_t)}")
         self._act = g.track(lambda t: table.at(t), p.name).result(5)
         last = 0.0
@@ -467,7 +471,7 @@ class SatSession:
         self._note(f"baseline heading {avg['heading']:.2f}° true → mount yaw ψ = {psi:+.2f}°")
         return psi
 
-    # ------------------------------------------------------------------ for the page
+    # for the page
     def status(self) -> dict:
         d = dict(self.prog)
         d["busy"] = self.busy()

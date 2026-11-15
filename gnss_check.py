@@ -3,9 +3,9 @@ gnss_check.py - live check of the ZED-F9P heading kit (receive only, uses gps_re
 
     ~/radioconda/bin/python gnss_check.py [--port /dev/ttyACM0] [--once]
 
-Prints once a second: fix, satellites, RTK state, baseline heading (base -> rover antenna) with a compass
-direction, pitch, baseline length, and a PASS/FAIL validation of each item. Ctrl-C to stop.
-The direction shown is the BASELINE direction (base antenna toward rover antenna), not the dish.
+Prints once a second: fix, satellites, RTK state, baseline heading with a compass direction, pitch,
+baseline length, and a PASS/FAIL check of each. Ctrl-C to stop.
+The direction shown is the baseline (base antenna toward rover antenna), not the dish.
 """
 import argparse
 import sys
@@ -38,7 +38,7 @@ def main():
     g.start()
     print(f"reading {port} ... (RTK FIXED needs both antennas with clear sky; can take a few minutes)\n")
     t0 = time.time()
-    good = []          # headings from epochs that are RTK FIXED *and* the right length and level
+    good = []          # headings from epochs that are RTK FIXED and the right length and level
     try:
         while True:
             time.sleep(1)

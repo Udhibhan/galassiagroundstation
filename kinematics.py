@@ -1,23 +1,23 @@
 """
-kinematics.py - the ONE copy of the X-Y gimbal geometry (was duplicated in trajectory.py,
+kinematics.py - the one copy of the X-Y gimbal geometry (used to be duplicated in trajectory.py,
 track_sun.py, pass_sim.py and two HTML files).
 
 Frames: ENU = (East, North, Up). Dish frame at HOME = ENU (dish face level).
-  X axis: shaft along East, rotates the dish toward South for +X   -> Rx(+x)
-  Y axis: rides on the X frame, rotates the dish toward East for +Y -> Ry(+y)
+  X axis: shaft along East, +X tips the dish toward South         = Rx(+x)
+  Y axis: rides on the X frame, +Y tips the dish toward East      = Ry(+y)
 
-OFFSET DISH (config.BORESIGHT_OFFSET): the RF beam is not the dish face's normal. In the dish frame
+Offset dish (config.BORESIGHT_OFFSET): the RF beam is not the dish face normal. In the dish frame
   boresight_body = R(offset) . [0,0,1]
-     "+Y"/"-Y": R = Ry(+/-deg)  -> an exact Y offset: Rx(x) Ry(y) Ry(d) = Rx(x) Ry(y + d)
-     "+X"/"-X": R = Rx(+/-deg)  -> no closed form is used: the inverse is solved numerically (Newton)
+     "+Y"/"-Y": R = Ry(+/-deg), exact: Rx(x) Ry(y) Ry(d) = Rx(x) Ry(y + d)
+     "+X"/"-X": R = Rx(+/-deg), no closed form, so the inverse is solved numerically (Newton)
   boresight(x, y) = M . Rx(x - x0) . Ry(y - y0) . boresight_body
-With deg = 0 this is exactly the old model: x = atan2(-cos az, tan el), y = asin(sin az cos el).
+With deg = 0 this is the old model: x = atan2(-cos az, tan el), y = asin(sin az cos el).
 
 Mount calibration:
-  yaw     : mount rotated clockwise (seen from above) by yaw deg  -> Rz(-yaw)   (az_sky = az_mount + yaw)
-  tilt_e  : mount tilted about East (top toward South for +)     -> Rx(tilt_e)
-  tilt_n  : mount tilted about North (top toward East for +)     -> Ry(tilt_n)
-  x0, y0  : encoder offsets: true axis angle = axis_deg - x0
+  yaw     : mount rotated clockwise (seen from above) by yaw deg, Rz(-yaw), az_sky = az_mount + yaw
+  tilt_e  : mount tilted about East (top toward South for +), Rx(tilt_e)
+  tilt_n  : mount tilted about North (top toward East for +), Ry(tilt_n)
+  x0, y0  : encoder offsets, true axis angle = axis_deg - x0
   sky_vector = M . Rx(x - x0) . Ry(y - y0) . body_vector,   M = Rz(-yaw) Rx(tilt_e) Ry(tilt_n)
 """
 import math
@@ -61,7 +61,7 @@ ZERO_CAL = {k: 0.0 for k in PARAMS}
 
 # ------------------------------------------------------------------ boresight offset
 def _offset(offset=None):
-    """-> (axis 'x'|'y'|None, signed degrees). offset=None reads config.BORESIGHT_OFFSET."""
+    """Returns (axis 'x'|'y'|None, signed degrees). offset=None reads config.BORESIGHT_OFFSET."""
     o = config.BORESIGHT_OFFSET if offset is None else offset
     deg = float(o.get("deg", 0.0) or 0.0)
     toward = str(o.get("toward", "+X")).strip().upper()
@@ -87,7 +87,7 @@ def mount_matrix(cal: dict):
 
 
 def body_to_sky(x_deg, y_deg, cal: dict, body=None, offset=None):
-    """Axis angles -> unit ENU vector of a dish-fixed direction (default: the RF boresight incl. offset)."""
+    """Unit ENU vector of a dish-fixed direction for the given axis angles (default: RF boresight incl. offset)."""
     x = (x_deg - cal.get("x0", 0)) * D2R
     y = (y_deg - cal.get("y0", 0)) * D2R
     b = boresight_body(offset) if body is None else np.asarray(body, float)
@@ -124,7 +124,7 @@ def _newton_x_offset(v, d_rad, guess=None):
 
 
 def azel_to_axes(az_deg, el_deg, cal: dict = ZERO_CAL, offset=None):
-    """Sky direction -> axis angles (x, y) in degrees for the RF boresight. Inverse of body_to_sky.
+    """Axis angles (x, y) in degrees that put the RF boresight on a sky direction. Inverse of body_to_sky.
     Raises ValueError if the boresight can't point there at all (some directions are unreachable
     with an X offset)."""
     v = mount_matrix(cal).T @ azel_to_enu(az_deg, el_deg)
@@ -169,7 +169,7 @@ def within_limits(x, y, margin=0.0) -> bool:
 
 
 def reachable(az_deg, el_deg, cal: dict = ZERO_CAL, offset=None, margin=0.0):
-    """-> (x, y) if the beam can point there within the soft limits, else None."""
+    """Returns (x, y) if the beam can point there within the soft limits, else None."""
     try:
         x, y = azel_to_axes(az_deg, el_deg, cal, offset)
     except ValueError:

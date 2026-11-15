@@ -1,9 +1,9 @@
 """
-trajectory.py - precomputed pass table: az/el/range-rate -> calibrated X/Y axis angles.
+trajectory.py - precomputed pass table: az/el/range-rate to calibrated X/Y axis angles.
 
 v2 called Skyfield 3x per control cycle with finite differences and clamped silently.
-v3 computes the whole pass once (vectorised), checks it against the axis limits and speeds BEFORE
-AOS, and the control loop just interpolates the table.
+v3 computes the whole pass once (vectorised) and checks it against axis limits and speeds before
+AOS. The control loop just interpolates the table.
 """
 from dataclasses import dataclass
 from datetime import datetime

@@ -1,30 +1,32 @@
 #!/usr/bin/env python3
 """
-current_char.py - current characterisation of the X-Y gimbal (motor current over the whole X and Y range,
-moving and holding, with the worst cases). Headless: it starts the SAME Gimbal thread as app.py (the only
-CAN sender) and gives it goto / track targets, like test_job.py and sun_job.py do.
+current_char.py - motor current characterisation of the X-Y gimbal over the full X and Y range, moving
+and holding, plus the worst cases. Headless: starts the same Gimbal thread as app.py (the only CAN
+sender) and feeds it goto / track targets, like test_job.py and sun_job.py.
 
     python3 current_char.py --sim --plan quick                      # simulator, 20x time (Phase 0: dry run)
     python3 current_char.py --pi <ip> --plan quick                  # hardware (Pi relay), ~1.5-2 h
     python3 current_char.py --pi <ip> --plan full --clamp-meter     # ~4 h, asks for DC clamp readings
     options: --phases 1,2,3,4,5   --allow-stop-test (phase 5)   --allow-accel-test (phase 6)
 
-Before anything moves it prints the plan (phases, poses, angle range, estimated time, abort limits), asks
-y/n for each phase, asks for operator notes, and waits for you to type RUN.
+Before anything moves it prints the plan (phases, poses, angle range, time estimate, abort limits),
+asks y/n per phase, asks for operator notes and waits for you to type RUN.
 
-Data: data/current_char/<YYYYmmdd_HHMMSS>/  plan.json  samples.csv  points.csv  events.jsonl  summary.json
-(never overwritten; every line flushed and fsync'ed). Then: python3 current_char_report.py <run_dir>.
+Data goes to data/current_char/<YYYYmmdd_HHMMSS>/ (plan.json, samples.csv, points.csv, events.jsonl,
+summary.json). Never overwritten, every line flushed and fsync'ed. Then run
+python3 current_char_report.py <run_dir>.
 
-IMPORTANT: register 0x0008 is MOTOR current, not the 48 V supply current. "Total" = |I_X| + |I_Y|.
-Supply current is only known from the clamp-meter readings (--clamp-meter).
+Register 0x0008 is MOTOR current, not the 48 V supply current. "Total" = |I_X| + |I_Y|. Supply
+current only comes from the clamp-meter readings (--clamp-meter).
 
-Bench rules followed (config.py / DEPLOY.md): only the Gimbal thread sends CAN; never enable without moving
-(Start = wake moves); >= 1 s between motor-off/setup and enable (Gimbal); standalone moves >= 0.5 deg; gentle
-polling (>= 30 ms between requests, nothing in the first 1 s after an enable or START, both axes read
-together at 2 Hz moving / 1 Hz holding, state at most 1 Hz, temperature + bus voltage every 10 s); accel
-0x0419 unless Phase 6; never writes 0x0050/0x0052/0x0053/0x00E8 (zeroerr_protocol refuses them);
-soft limits +/-80 deg; CAD collision limit minus 3 deg on every PATH (not just end points); software
-current stops X 15 A / Y 11 A kept (a trip = STOP, logged as a worst case, step skipped, run continues).
+Bench rules followed (config.py / DEPLOY.md): only the Gimbal thread sends CAN; never enable without
+moving (Start = wake moves); at least 1 s between motor-off/setup and enable (Gimbal); standalone
+moves at least 0.5 deg; gentle polling (30 ms or more between requests, nothing in the first 1 s after
+an enable or START, both axes read together at 2 Hz moving / 1 Hz holding, state at most 1 Hz,
+temperature + bus voltage every 10 s); accel 0x0419 unless Phase 6; never writes
+0x0050/0x0052/0x0053/0x00E8 (zeroerr_protocol refuses them); soft limits +/-80 deg; CAD collision limit
+minus 3 deg on every path, not just the end points; software current stops X 15 A / Y 11 A stay on
+(a trip = STOP, logged as a worst case, step skipped, run continues).
 """
 import argparse
 import csv
@@ -57,8 +59,8 @@ POS_TOL = 5.0                                     # operator choice 14 Nov: a me
 
 
 def clamp_soft(v, soft=None):
-    """Treat a measured angle up to POS_TOL past the soft limit as AT the limit (encoder settle), so the
-    planner and the CAD check do not see 'outside' for a dish that stopped 0.004 deg beyond +80."""
+    """A measured angle up to POS_TOL past the soft limit counts as at the limit (encoder settle), so the
+    planner and CAD check do not call it outside after a stop 0.004 deg beyond +80."""
     soft = SOFT if soft is None else soft
     if soft < abs(v) <= soft + POS_TOL:
         return math.copysign(soft, v)
@@ -170,8 +172,8 @@ def sgn(v):
 
 # ================================================================================== simulator time
 class FastClock:
-    """--sim only: everything that uses time.monotonic / time.sleep / clock.now runs `scale` x faster
-    (gimbal thread, simulated drives, this runner). Never installed for hardware."""
+    """--sim only: time.monotonic / time.sleep / clock.now run `scale` x faster (gimbal thread, simulated
+    drives, this runner). Never installed for hardware."""
 
     def __init__(self, scale):
         import clock
@@ -264,7 +266,7 @@ def counts_to_deg(c):
 
 # ================================================================================== relay / process checks
 def _tcp_established_to(ip: str, port: int) -> list[str]:
-    """Local ESTABLISHED TCP connections to ip:port (from /proc/net/tcp*). [] if unknown."""
+    """Local established TCP connections to ip:port (from /proc/net/tcp*). [] if unknown."""
     hits = []
     try:
         packed = socket.inet_aton(ip)
@@ -771,7 +773,7 @@ class LiveRig:
         raise Abort(f"move {step} failed: {act['why']}")
 
     def reach(self, tx, ty, step, watch=True):
-        """Straight diagonal goto WITHOUT the CAD check (soft limits +/-80 only, current stops kept). Enter/Space
+        """Straight diagonal goto without the CAD check (soft limits +/-80 only, current stops kept). Enter/Space
         (or --sim-diag-stop) = STOP both axes; the angle at the key press is that diagonal's max reach."""
         g = self.g
         cx, cy = (clamp_soft(v) for v in g.angles())
@@ -1589,7 +1591,7 @@ def main(argv=None):
     clk = None
     if a.sim:
         clk = FastClock(a.time_scale)
-        # the gimbal's 2 s deadman counts simulated time; keep it 2 s of REAL time so a busy laptop does not trip it
+        # the gimbal's 2 s deadman counts simulated time; keep it 2 s of real time so a busy laptop does not trip it
         config.PAGE_DEADMAN_S = config.PAGE_DEADMAN_S * a.time_scale
     else:
         relay_preflight(a.pi)

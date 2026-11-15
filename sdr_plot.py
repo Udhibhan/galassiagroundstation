@@ -1,11 +1,11 @@
 """
-sdr_plot.py - live graph of the LNB IF power (same measurement as sdr_power.py). RECEIVE ONLY (RX2).
+sdr_plot.py - live graph of the LNB IF power (same measurement as sdr_power.py). Receive only (RX2).
 
     python3 sdr_plot.py                      # uses config.SDR (IF, rate, gain)
     python3 sdr_plot.py --gain 10 --freq 1.2e9
 
 Top: power (dBFS) vs time, ~10 readings/s. Bottom: spectrum of the latest block.
-Stop app.py first - only one program can open the SDR. Close the window to quit.
+Stop app.py first, only one program can open the SDR. Close the window to quit.
 """
 import argparse
 import collections

@@ -1,19 +1,19 @@
-"""Transmitter blocks: payload -> DVB-S2 (gr-dtv) + Link X dummy frames -> impairments -> out.
+"""Transmitter blocks: payload, DVB-S2 (gr-dtv) + Link X dummy frames, impairments, output.
 
   tx_payload   bits for dvb_bbscrambler_bb (one bit per byte), from
-                 gsse      a file or folder as the Link X / SX sends it: GSUFTP -> GSSE
-                           (rev1.0), or GSUFTP -> UDP -> IPv4 -> GSSE (rev1.2), or plain UDP
+                 gsse      a file or folder as the Link X / SX sends it: GSUFTP in GSSE
+                           (rev1.0), GSUFTP/UDP/IPv4 in GSSE (rev1.2), or plain UDP
                            (udpraw); tx_simulator.py's encoder. Loops `repeat` times
                            (0 = forever), then `flush` empty BBFRAMEs so the receiver's LDPC
                            decoder releases its last frames
                  bbframes  a BBFRAME file (tx_simulator --out-file, or a capture), looped
                  gse_tap0  the old gr-dvbgse path: standard GSE from tap0 (field-test
                            send_dir/recv_dir transfers; run setup_tx_ifaces.sh first)
-  dvbs2_tx     gr-dtv BBscrambler -> BCH -> LDPC -> interleaver -> modulator -> PL framer
-               (pilots on, gold code 0), then dummy PLFRAMEs (lead-in and after every data
-               frame, as the Link X sends them when idle: RF ICD 1045318 sec. 3.1) and the RRC
-               (roll-off 0.2) at `sps`. A hier block because the gr-dtv GRC blocks take the
-               MODCOD only as fixed enums.
+  dvbs2_tx     gr-dtv BBscrambler, BCH, LDPC, interleaver, modulator, PL framer (pilots on,
+               gold code 0), then dummy PLFRAMEs (lead-in and after every data frame, as the
+               Link X sends them when idle: RF ICD 1045318 sec. 3.1) and the RRC (roll-off
+               0.2) at `sps`. A hier block because the gr-dtv GRC blocks take the MODCOD
+               only as fixed enums.
   iq_select    generate (pass-through) or replay an IQ file (sc16/fc32) instead
   impairments  carrier on/off, level (dB), a transient schedule, CFO, TLE Doppler, AWGN
   tx_sink      B205mini (TX/RX port) or an IQ file (sc16/fc32 + .start/.json sidecars)

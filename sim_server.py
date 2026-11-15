@@ -1,8 +1,6 @@
 """
-sim_server.py
-
-Web front end for pass_sim.py: open http://localhost:8001, pick a satellite, press Track.
-Simulation only - this server never opens a CAN bus or moves a motor.
+sim_server.py - web front end for pass_sim.py: open http://localhost:8001, pick a satellite,
+press Track. Simulation only, never opens a CAN bus or moves a motor.
 
     python sim_server.py
 """

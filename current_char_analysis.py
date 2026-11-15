@@ -1,16 +1,16 @@
 """
 current_char_analysis.py - shared numbers for the current characterisation (numpy only, no plotting).
 
-Used by current_char.py (writes summary.json at the end of a run, or on abort for whatever finished)
-and by current_char_report.py (figures, LaTeX table, dashboard). Every number comes from the run's
-samples.csv / points.csv / events.jsonl / plan.json: nothing is estimated here.
+current_char.py uses it to write summary.json (at the end of a run, or on abort for whatever finished);
+current_char_report.py uses it for the figures, LaTeX table and dashboard. Everything is computed from
+the run's samples.csv / points.csv / events.jsonl / plan.json.
 
 Conventions
-  * ix_a, iy_a = drive register 0x0008 (MOTOR current, signed A). NOT the 48 V supply current.
-  * itotal_a  = |I_X| + |I_Y|. Supply current is only known from clamp-meter readings (events.jsonl).
-  * x_dir / y_dir = direction the axis is moving in (+1 / -1), 0 = not moving.
-  * "lifting" = moving toward HOME (against gravity): dir * sign(angle) < 0.  "lowering" = away from HOME.
-  * % of rating = max(|I_X| / 25 A, |I_Y| / 18 A)  (continuous ratings of eRob110 X and eRob90 Y).
+  ix_a, iy_a: drive register 0x0008, MOTOR current in A (signed), not the 48 V supply current.
+  itotal_a = |I_X| + |I_Y|. Supply current only exists in the clamp-meter readings (events.jsonl).
+  x_dir / y_dir: direction the axis moves in (+1 / -1), 0 = not moving.
+  lifting = moving toward HOME (against gravity), dir * sign(angle) < 0. Lowering = away from HOME.
+  % of rating = max(|I_X| / 25 A, |I_Y| / 18 A), the continuous ratings of the eRob110 (X) and eRob90 (Y).
 """
 import csv
 import json
@@ -37,8 +37,8 @@ POINT_COLS = (["x_deg", "y_deg", "approach_x", "approach_y"]
 
 # ------------------------------------------------------------------ CAD collision limit
 def cad_max_abs_y(abs_x: float, margin: float = 3.0) -> float:
-    """Largest safe |Y| at this |X|: linear interpolation in the CAD table, floored to the lower neighbouring
-    table value (the one at the next table |X| up, i.e. the conservative side), minus the margin."""
+    """Largest safe |Y| at this |X|: interpolate the CAD table, but take the lower neighbouring value (the
+    one at the next table |X| up, the conservative side), then subtract the margin."""
     ax = abs(abs_x)
     if ax <= CAD_TABLE[0][0]:
         return CAD_TABLE[0][1] - margin
@@ -72,7 +72,7 @@ def _f(v):
 
 
 def load_samples(run_dir: str) -> dict:
-    """samples.csv -> dict of numpy arrays (numeric columns) / lists (text columns). Tolerates a torn last line."""
+    """samples.csv as a dict of numpy arrays (numeric columns) / lists (text columns). A torn last line is skipped."""
     path = os.path.join(run_dir, "samples.csv")
     cols = {c: [] for c in SAMPLE_COLS}
     if os.path.exists(path):
@@ -146,7 +146,7 @@ def _dir_word(d):
 
 
 def _row(S, i, extra=None) -> dict:
-    """One sample as a JSON-friendly record."""
+    """One sample as a JSON-friendly dict."""
     ix, iy = S["ix_a"][i], S["iy_a"][i]
     x, y = S["x_deg"][i], S["y_deg"][i]
     xd, yd = S["x_dir"][i], S["y_dir"][i]
@@ -175,7 +175,7 @@ def _argmax(vals, mask):
 
 # ------------------------------------------------------------------ model fit
 def _lstsq(A, b):
-    """-> coef, standard errors, R^2, n."""
+    """Returns coef, standard errors, R^2, n."""
     n, p = A.shape
     if n <= p + 1:
         return None

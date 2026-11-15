@@ -1,14 +1,14 @@
 """
-sdr_power.py - total-power meter on the LNB IF using the B206mini. RECEIVE ONLY.
+sdr_power.py - total-power meter on the LNB IF using the B206mini. Receive only.
 
-The Sun is a strong Ku-band noise source, so the IF noise power rises several dB when the dish points at it.
-~10 readings/s; each reading = mean |x|^2 over ~50 ms (200 000 samples at 4 Msps), kept LINEAR (dB is
-only for display). Every reading carries a saturation flag: any |sample| > 0.7 FS -> "reduce gain" and the
-measurement that used it is marked invalid.
+The Sun is a strong Ku-band noise source, so IF noise power rises several dB when the dish points at it.
+About 10 readings/s, each the mean |x|^2 over ~50 ms (200 000 samples at 4 Msps), kept linear (dB is
+for display only). Every reading carries a saturation flag: any |sample| > 0.7 FS means "reduce gain"
+and the measurement that used it is marked invalid.
 
-SAFETY (B206mini is RECEIVE ONLY): this file only ever creates an RX streamer on RX2 (get_rx_stream,
-set_rx_*). It never creates a TX streamer, never calls set_tx_* / get_tx_stream, never uses a USRP Sink,
-uhd_siggen, tx_waveforms, tx_samples_from_file, benchmark_rate --tx_rate or any EEPROM/firmware tool.
+Safety: the B206mini is receive only. This file only creates an RX streamer on RX2 (get_rx_stream,
+set_rx_*). Never create a TX streamer, call set_tx_* / get_tx_stream, or use a USRP Sink, uhd_siggen,
+tx_waveforms, tx_samples_from_file, benchmark_rate --tx_rate or any EEPROM/firmware tool.
 The TX/RX port stays unconnected. Keep the SDR input at or below -15 dBm.
 """
 import logging
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 class PowerMeter:
     """Common part: a reader thread, a ring buffer of readings and averaging helpers.
-    Subclasses implement _open() and _measure() -> (mean |x|^2 linear, peak |x|)."""
+    Subclasses implement _open() and _measure(), which returns (mean |x|^2 linear, peak |x|)."""
     name = "power meter"
 
     def __init__(self, cfg: config.SdrConfig = config.SDR):
@@ -34,12 +34,12 @@ class PowerMeter:
         self.available = False
         self.error = "opening"
         self.readings = deque(maxlen=20000)          # ~30 min at 10/s
-        self.on_reading = None                       # callback(reading) - the app logs every reading
+        self.on_reading = None                       # callback(reading), the app logs every reading
         self.sat_total = 0
         self._stop = threading.Event()
         self._thread = None
 
-    # ---- thread
+    # thread
     def start(self):
         self._thread = threading.Thread(target=self._run, name="sdr", daemon=True)
         self._thread.start()
@@ -69,7 +69,7 @@ class PowerMeter:
                 fails += 1
                 self.error = f"read failed: {e}"
                 log.warning("SDR: %s", self.error)
-                if fails >= 5:                       # unplugged / wedged -> reopen
+                if fails >= 5:                       # unplugged / wedged, reopen
                     opened = False
                 self._stop.wait(1.0)
                 continue
@@ -92,7 +92,7 @@ class PowerMeter:
     def close(self):
         self._stop.set()
 
-    # ---- API
+    # API
     def latest(self):
         return self.readings[-1] if self.readings else None
 
@@ -108,7 +108,7 @@ class PowerMeter:
                 "peak": max(r["peak"] for r in rs)}
 
     def average(self, seconds, cancel=None) -> dict:
-        """Collect readings for `seconds` from now and return stats() (n = 0 if cancelled / no SDR)."""
+        """Collect readings for `seconds` from now and return stats() (n = 0 if cancelled or no SDR)."""
         tm0 = time.monotonic()
         while time.monotonic() - tm0 < seconds:
             if cancel and cancel():
@@ -123,7 +123,7 @@ class PowerMeter:
                 "name": self.name, "gain_db": self.gain_db, "db": r["db"] if fresh else None,
                 "sat": bool(r and fresh and r["sat"]), "sat_total": self.sat_total}
 
-    # ---- subclass
+    # subclass
     def _release(self):
         """Drop any half-open device before a (re)open. Subclasses with hardware override this."""
 
@@ -159,7 +159,7 @@ class SdrPower(PowerMeter):
                  cfg.rate_hz / 1e6, self.gain_db)
 
     def _measure(self):
-        """One burst of cfg.samples (+ settling), mean |x|^2 (linear, FS^2) and the largest |x|."""
+        """One burst of cfg.samples (plus settling). Returns mean |x|^2 (linear, FS^2) and the largest |x|."""
         uhd, np = self._uhd, self._np
         skip = 2000
         want = self.cfg.samples + skip

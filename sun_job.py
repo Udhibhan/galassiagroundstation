@@ -1,30 +1,31 @@
 """
 sun_job.py - Sun finding, peak-up, tracking and the G/T (Y-factor) measurement.
 
-Runs in its own worker thread but NEVER touches CAN: it only gives the gimbal thread goto/track targets
-(gimbal.goto / gimbal.track) and reads the SDR power meter (receive only).
+Runs in its own worker thread and never touches CAN. It only hands goto/track targets to the
+gimbal thread (gimbal.goto / gimbal.track) and reads the SDR power meter (receive only).
 
-Actions (one at a time):
-  find (method "gnss")   1. average the GNSS heading (NAV-RELPOSNED, carrSoln = 2 only) for 60 s
-                         2. mount yaw psi = heading - 90 deg (rover on the +Y side; -Y side: heading - 270)
-                         3. go to the predicted Sun (cal = {yaw: psi}), then COMMON PEAK-UP, then TRACK
-  find (method "blind")  ELEVATION-RING scan: sweep the azimuth continuously at ~1 deg/s along
-                         el = el_sun(t) (yaw = 0) over predicted az +/- 40 deg with the gimbal's TRACK mode,
-                         recording power. No peak >= ring_min_rise_db over the start of the cycle -> el +/- 1.2 deg, then +/- 80 deg.
-                         psi = predicted_az(t_peak) - az_at_peak (mount frame). Then PEAK-UP, then TRACK.
-  PEAK-UP                cold sky (10 deg off, same elevation, 10 s) -> cross-scan +/-3 deg in X, then Y,
-                         following the Sun (track + offset), 0.2 deg steps -> Gaussian fit in LINEAR power
-                         above the cold floor -> one refinement pass at +/-1.5 deg -> offsets {dX, dY},
-                         FWHM (sky degrees), refined yaw.
-  TRACK                  follow the prediction + offsets (gimbal track mode, 0.5 s steps).
-  gt                     P_sun 10 s on peak, P_cold 10 s at 10 deg off -> Y -> G/T (needs the solar flux in sfu).
-  off                    move 10 deg off the Sun.
+Actions, one at a time:
+  find (gnss)   average the GNSS heading (NAV-RELPOSNED, carrSoln = 2 only) for 60 s,
+                mount yaw psi = heading - 90 deg (rover on the +Y side; on -Y use heading - 270),
+                go to the predicted Sun (cal = {yaw: psi}), common peak-up, then track.
+  find (blind)  elevation-ring scan: sweep azimuth at ~1 deg/s along el = el_sun(t) (yaw = 0),
+                predicted az +/- 40 deg, using the gimbal's track mode, recording power.
+                No peak >= ring_min_rise_db over the start of the cycle: widen to el +/- 1.2 deg,
+                then +/- 80 deg. psi = predicted_az(t_peak) - az_at_peak (mount frame).
+                Then peak-up, then track.
+  peak-up       cold sky (10 deg off, same elevation, 10 s), cross-scan +/-3 deg in X then Y
+                following the Sun (track + offset) in 0.2 deg steps, Gaussian fit in linear power
+                above the cold floor, one refinement pass at +/-1.5 deg. Gives offsets {dX, dY},
+                FWHM (sky degrees) and a refined yaw.
+  track         follow the prediction + offsets (gimbal track mode, 0.5 s steps).
+  gt            P_sun 10 s on peak, P_cold 10 s at 10 deg off, Y, then G/T (needs solar flux in sfu).
+  off           move 10 deg off the Sun.
 
-LNB HEAT RULE: the dish focuses sunlight onto the LNB. Continuous time within 1.5 deg of the Sun is limited to
-120 s (config.SUN_JOB.heat_limit_s); then the dish moves 10 deg off automatically and says why. Abort/STOP
-during any Sun step: STOP, then if near the Sun, move 10 deg off.
+LNB heat: the dish focuses sunlight onto the LNB. Time spent within 1.5 deg of the Sun is limited to
+120 s (config.SUN_JOB.heat_limit_s), then the dish moves 10 deg off by itself and says why.
+Abort/STOP during any Sun step stops, then moves 10 deg off if near the Sun.
 
-Everything (readings, scans, fits, Y, G/T inputs/outputs, Sun az/el, gain) -> logs/sun_<time>.json + .csv.
+Readings, scans, fits, Y, G/T inputs/outputs, Sun az/el and gain go to logs/sun_<time>.json + .csv.
 """
 import csv
 import json
@@ -61,10 +62,10 @@ def wrap180(a):
     return (a + 180.0) % 360.0 - 180.0
 
 
-# ------------------------------------------------------------------------------------------- maths
+# maths
 def fit_gauss(x, y):
-    """Least-squares fit of y = b + A exp(-4 ln2 (x - x0)^2 / w^2) (LINEAR power). Levenberg-Marquardt,
-    numeric Jacobian. -> dict(b, A, x0, w, rms, ok)."""
+    """Least-squares fit of y = b + A exp(-4 ln2 (x - x0)^2 / w^2) in linear power.
+    Levenberg-Marquardt with a numeric Jacobian. Returns dict(b, A, x0, w, rms, ok)."""
     x, y = np.asarray(x, float), np.asarray(y, float)
     i = int(np.argmax(y))
     b0 = float(np.percentile(y, 20))
@@ -110,7 +111,7 @@ def fit_gauss(x, y):
 
 
 def gt_from_y(y_lin, sfu, fwhm_deg, freq_hz=None):
-    """G/T = 8 pi k (Y - 1) L / (lambda^2 S),  S = sfu * 1e-22 W/m^2/Hz,  L = 1 + 0.38 (0.53 deg / theta)^2."""
+    """G/T = 8 pi k (Y - 1) L / (lambda^2 S), S = sfu * 1e-22 W/m^2/Hz, L = 1 + 0.38 (0.53 deg / theta)^2."""
     freq_hz = freq_hz or config.SDR.sky_freq_hz
     lam = C_LIGHT / freq_hz
     L = 1 + 0.38 * (0.53 / fwhm_deg) ** 2 if fwhm_deg else None
@@ -123,13 +124,13 @@ def gt_from_y(y_lin, sfu, fwhm_deg, freq_hz=None):
     return out
 
 
-# ------------------------------------------------------------------------------------------- session
+# session
 class SunSession:
     def __init__(self, gimbal, meter_fn, gnss, site_fn):
         self.g = gimbal
-        self.meter_fn = meter_fn             # -> PowerMeter or None
+        self.meter_fn = meter_fn             # returns PowerMeter or None
         self.gnss = gnss
-        self.site_fn = site_fn               # -> (lat, lon, source)
+        self.site_fn = site_fn               # returns (lat, lon, source)
         self.cfg = config.SUN_JOB
         self.thread = None
         self.cancel = threading.Event()
@@ -150,7 +151,7 @@ class SunSession:
         self._plot = {"title": "", "xlabel": "", "pts": [], "fit": []}
         self.prog = {"state": "idle", "action": None, "step": "", "pct": 0, "msg": "", "warnings": []}
 
-    # ======================================================================= public
+    # public
     def busy(self):
         return self.thread is not None and self.thread.is_alive()
 
@@ -159,7 +160,7 @@ class SunSession:
         return sun_azel(t or clock.now(), lat, lon)
 
     def checks(self, method=None) -> list:
-        """Reasons a Sun step can't start now (empty = OK)."""
+        """Reasons a Sun step cannot start now (empty list = fine)."""
         why = []
         az, el = self.sun_now()
         if el < self.cfg.min_el:
@@ -178,7 +179,7 @@ class SunSession:
         return why
 
     def next_window(self):
-        """First time in the next 24 h when the Sun is inside the allowed elevation window (None if never)."""
+        """First time in the next 24 h the Sun is inside the allowed elevation window, or None."""
         t = clock.now()
         for m in range(5, 24 * 60, 5):
             _, el = self.sun_now(t + timedelta(minutes=m))
@@ -187,7 +188,7 @@ class SunSession:
         return None
 
     def checks_auto(self) -> list:
-        """Reasons the one-button Auto can't start (it starts the motors itself and uses whatever is connected)."""
+        """Reasons the one-button Auto cannot start. It starts the motors itself and uses whatever is connected."""
         why = []
         az, el = self.sun_now()
         if el < self.cfg.min_el:
@@ -215,7 +216,7 @@ class SunSession:
     def start(self, action, method=None, opts=None):
         if self.busy():
             raise RuntimeError(f"a Sun step is already running ({self.prog['action']}): Abort it first")
-        end = time.monotonic() + 3.0                           # a move just ended: let the state poll catch up
+        end = time.monotonic() + 3.0                           # a move just ended, let the state poll catch up
         while not self.g.holding and time.monotonic() < end and self.g.mode == "on":
             time.sleep(0.1)
         opts = dict(opts or {})
@@ -297,15 +298,15 @@ class SunSession:
     def reach_grid(self):
         return K.reach_grid(self.cal or {"yaw": 0.0})
 
-    # ======================================================================= worker
+    # worker
     def _note(self, text, level="info"):
-        """One line of the running commentary shown on the page."""
+        """One line of the running commentary on the page."""
         lg = self.prog.setdefault("log", [])
         lg.append({"t": clock.now().isoformat(timespec="seconds"), "msg": text, "level": level})
         del lg[:-120]
 
     def _stage(self, name):
-        """The coarse stage shown in the progress diagram: motors, home, north, point, peak, track."""
+        """Coarse stage for the progress diagram: motors, home, north, point, peak, track."""
         self.prog["stage"] = name
 
     def _say(self, step, pct=None, msg=None):
@@ -364,7 +365,7 @@ class SunSession:
             except Exception:
                 log.exception("Sun log save failed")
 
-    # ---- waiting with checks ----------------------------------------------------------------
+    # waiting with checks
     def _meter(self):
         m = self.meter_fn()
         if m is None or not m.available:
@@ -416,14 +417,14 @@ class SunSession:
                 raise RuntimeError("the dish did not settle on the target")
             time.sleep(0.05)
 
-    # ---- geometry --------------------------------------------------------------------------------
+    # geometry
     def _sun_axes(self, t, dX=0.0, dY=0.0, cal=None, daz=0.0, del_=0.0):
         az, el = self.sun_now(t)
         x, y = K.azel_to_axes(az + daz, el + del_, cal or self.cal)
         return x + dX, y + dY
 
     def _sep(self, pose):
-        """Angle (deg) between the beam (model: cal + offsets) and the Sun now."""
+        """Angle (deg) between the beam (cal + offsets) and the Sun now."""
         az, el = self.sun_now()
         x, y = pose
         v = K.body_to_sky(x - self.offs[0], y - self.offs[1], self.cal)
@@ -453,14 +454,14 @@ class SunSession:
             raise HeatLimit(f"LNB heat rule: {self.cfg.heat_limit_s:.0f} s within {self.cfg.heat_radius}° of the Sun")
 
     def _off_side(self):
-        """+1/-1: the azimuth side to go off to (away from where the Sun is moving)."""
+        """+1/-1: azimuth side to go off to, away from where the Sun is moving."""
         t = clock.now()
         a0, _ = self.sun_now(t)
         a1, _ = self.sun_now(t + timedelta(minutes=2))
         return -1 if wrap180(a1 - a0) > 0 else 1
 
     def _cold_fn(self, side):
-        """Track target 10 deg (on the sky) off the Sun at the same elevation, on `side`."""
+        """Track target 10 deg off the Sun on the sky, same elevation, on `side`."""
         def fn(t):
             az, el = self.sun_now(t)
             daz = side * self.cfg.cold_offset / max(math.cos(math.radians(el)), 0.2)
@@ -480,7 +481,7 @@ class SunSession:
         raise RuntimeError("no reachable cold-sky point 10° off the Sun within ±80°")
 
     def _move_off(self, why):
-        """Move 10 deg off the Sun from wherever the dish points now. safety=True: not stopped by the deadman."""
+        """Move 10 deg off the Sun from wherever the dish points. safety=True: not stopped by the deadman."""
         end = time.monotonic() + 5
         while any(r.phase == "stopping" for r in self.g.run.values()) and time.monotonic() < end:
             time.sleep(0.1)
@@ -519,7 +520,7 @@ class SunSession:
         return False
 
     def _cleanup(self, why, force_off=False):
-        """After Abort / failure / heat limit: stop the activity; if near the Sun, move 10 deg off."""
+        """After Abort / failure / heat limit: stop the activity, and if near the Sun move 10 deg off."""
         self._act = None
         try:
             near = force_off or self._near(self.cfg.abort_near, 1.0)
@@ -537,7 +538,7 @@ class SunSession:
                 self.prog["moved_off"] = f"move-off failed: {e}"
                 log.exception("move off")
 
-    # ---- readings / plots ---------------------------------------------------------------------
+    # readings / plots
     def _rows_since(self, tm0):
         return [(r, p, s) for (r, p, s) in list(self.rows) if r["tm"] >= tm0]
 
@@ -546,7 +547,7 @@ class SunSession:
                       "fit": [[round(a, 4), round(b, 3)] for a, b in (fit or [])]}
 
     def _avg(self, seconds, label):
-        """Average power (linear) for `seconds` while following the current target."""
+        """Average linear power over `seconds` while following the current target."""
         m = self._meter()
         tm0 = time.monotonic()
         while time.monotonic() - tm0 < seconds:
@@ -560,7 +561,7 @@ class SunSession:
             self._warn("SDR saturated (|x| > 0.7 FS): reduce gain - result INVALID")
         return st
 
-    # ======================================================================= find
+    # find
     def _find(self, method):
         self.result = None
         self.cal, self.offs, self.floor_lin, self.near_since = None, (0.0, 0.0), None, None
@@ -589,14 +590,14 @@ class SunSession:
             self._wait_settled(240)
             st = self._avg(2.0, "on the predicted Sun")
             res["predicted_db"] = st["db"]
-            # GNSS north can be 5-10 deg off: the Sun's own radio power corrects it (and the 3D view / sky plots follow)
+            # GNSS north can be 5-10 deg off, the Sun's own radio power corrects it (3D view and sky plots follow)
             self._stage("peak")
             psi_g = psi
             res["gnss_psi"] = psi_g
             try:
                 psi, rings = self._local_search(psi_g)
             except RuntimeError as e:
-                # no clear Sun rise: don't wander off on a blind search, just sit on the GNSS prediction
+                # no clear Sun rise: don't wander off on a blind search, sit on the GNSS prediction
                 return self._fallback_predicted(res, psi_g, str(e))
             res.update(psi=psi, psi_source="GNSS + Sun power", search=rings)
             self.cal = {"yaw": psi}
@@ -619,7 +620,7 @@ class SunSession:
         self._track_sun()
 
     def _fallback_predicted(self, res, psi, why):
-        """No Sun rise above the threshold: point at (and track) the Sun position PREDICTED from the GNSS yaw, no offsets."""
+        """No Sun rise above threshold: point at and track the Sun predicted from the GNSS yaw, no offsets."""
         self._warn(f"{why}: pointing at the predicted Sun position instead (GNSS north, no peak-up)")
         self.cal, self.offs = {"yaw": psi}, (0.0, 0.0)
         res.update(psi=psi, psi_source="GNSS only (no Sun peak found)", peak_ok=False, fallback=why)
@@ -635,7 +636,7 @@ class SunSession:
         self._track_sun()
 
     def _auto(self):
-        """One button: motors on -> GNSS north -> Sun position -> point -> (peak-up if SDR) -> track. Narrated."""
+        """One button: motors, GNSS north, Sun position, point, peak-up (if SDR), track. Narrated."""
         g = self.g
         lat, lon, src = self.site_fn()
         az, el = self.sun_now()
@@ -656,7 +657,7 @@ class SunSession:
                 raise RuntimeError("the motors did not come up in 150 s")
             time.sleep(0.2)
         self._say("Motors holding", 8, "both axes ON and holding")
-        # 1b. HOME (dish level, X 0 / Y 0): the known starting pose
+        # 1b. home (dish level, X 0 / Y 0) as the known starting pose
         self._stage("home")
         x0, y0 = g.angles()
         if x0 is None or y0 is None or max(abs(x0), abs(y0)) > 0.3:
@@ -745,7 +746,7 @@ class SunSession:
                                f"(soft limits ±80°, boresight offset {config.BORESIGHT_OFFSET['deg']}° "
                                f"toward {config.BORESIGHT_OFFSET['toward']})")
 
-    # ---- method 2: elevation ring ---------------------------------------------------------------
+    # method 2: elevation ring
     def _ring_search(self):
         cal0 = {"yaw": 0.0}
         rings = []
@@ -760,8 +761,8 @@ class SunSession:
                            f"(±{self.cfg.ring_wide_half_width:.0f}°, el ±1.2°) - check the boresight offset direction")
 
     def _local_search(self, psi_g):
-        """Ring scan around the PREDICTED Sun using the GNSS yaw: finds the Sun's power peak even if north is 5-10 deg off.
-        Returns (corrected yaw, rings). In the scan's frame (yaw = psi_g) the result is the residual, so the total is psi_g + psi."""
+        """Ring scan around the predicted Sun using the GNSS yaw. Finds the power peak even if north is 5-10 deg off.
+        Returns (corrected yaw, rings). In the scan frame (yaw = psi_g) the result is the residual, so total = psi_g + psi."""
         cal0 = {"yaw": psi_g}
         half = self.cfg.gnss_search_half
         rings = []
@@ -807,7 +808,7 @@ class SunSession:
         self._say(label, pct0, f"to the ring start az {a0:.1f}° (yaw 0)")
         sx, sy = K.azel_to_axes(a0, self.sun_now()[1] + del_, cal0)
         self._goto(sx, sy, "ring start")
-        # time table along the ring: az rate <= ring_rate, and each axis <= ring_max_axis_rate
+        # time table along the ring: az rate <= ring_rate, each axis <= ring_max_axis_rate
         el_r = self.sun_now()[1] + del_
         tab_az = list(np.arange(a0, a1 + direction * 1e-6, direction * 0.25))
         if abs(tab_az[-1] - a1) > 1e-6:
@@ -858,7 +859,7 @@ class SunSession:
         azm = np.array([K.axes_to_azel(p[0], p[1], cal0)[0] for _, p in rows])
         med = float(np.median(lin))
         k = max(1, int(self.cfg.ring_ref_samples))
-        ref = float(np.mean(lin[:k]))         # reference = power at the START of this ring cycle (not the median)
+        ref = float(np.mean(lin[:k]))         # reference = power at the start of this ring cycle (not the median)
         i = int(np.argmax(lin))
         rise = 10 * math.log10(lin[i] / ref)
         out.update(median_db=10 * math.log10(med), ref_db=10 * math.log10(ref), peak_db=10 * math.log10(lin[i]), rise_db=rise,
@@ -883,7 +884,7 @@ class SunSession:
         self._say(label, msg=f"peak {rise:+.2f} dB (vs start of cycle) at mount az {az_pk:.2f}°, Sun az {sun_az_pk:.2f}° → ψ {psi:+.2f}°")
         return out
 
-    # ---- common peak-up --------------------------------------------------------------------------
+    # common peak-up
     def _peakup(self, res):
         cfg = self.cfg
         self._stage("peak")
@@ -971,7 +972,7 @@ class SunSession:
         self._say(label, msg=f"peak at {axis.upper()} {f['x0']:+.3f}°, width {f['w']:.2f}° (axis), +{rise:.1f} dB")
         return f
 
-    # ---- track -----------------------------------------------------------------------------------------
+    # track
     def _track_sun(self):
         self._stage("track")
         self._say("tracking the Sun", 96, f"prediction + offsets; moves 10° off after {self.cfg.heat_limit_s:.0f} s (LNB heat)")
@@ -993,7 +994,7 @@ class SunSession:
             rs = m.since(tm0) if m else []
             self._set_plot("tracking the Sun", "time (s)", [(r["tm"] - tm0, r["db"]) for r in rs])
 
-    # ---- G/T ---------------------------------------------------------------------------------------------
+    # G/T
     def _gt(self):
         cfg = self.cfg
         fwhm = self.result["fwhm"]
@@ -1028,7 +1029,7 @@ class SunSession:
         msg += f", G/T = {out['gt_db']:.2f} dB/K" if out["gt_db"] is not None else " (enter the solar flux for G/T)"
         self._say("G/T done", 100, msg + " - dish left 10° off the Sun")
 
-    # ======================================================================= logs
+    # logs
     def _save(self):
         if not self.session:
             return

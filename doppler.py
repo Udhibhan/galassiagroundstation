@@ -1,12 +1,4 @@
-"""
-doppler.py
-
-Computes Doppler-shifted frequency from a satellite's range-rate
-(closing/receding velocity relative to the ground station), for radio
-tuning during a pass. 
-
-Pulls range_rate_km_s from trajectory.XYSample.
-"""
+"""Doppler-shifted receive frequency from range rate (trajectory.XYSample.range_rate_km_s)."""
 
 from dataclasses import dataclass
 
@@ -21,12 +13,8 @@ class DopplerResult:
     rx_freq_hz: float
 
 def compute_doppler(sample: XYSample, tx_freq_hz: float) -> DopplerResult:
-    """
-    Given the nominal transmit frequency of the satellite (`tx_freq_hz`)
-    and a trajectory sample carrying range_rate_km_s (negative = closing,
-    positive = receding, matching Skyfield's convention), return the
-    Doppler shift and the frequency the ground station should tune to.
-    """
+    """Shift and tune frequency for a nominal tx_freq_hz.
+    range_rate_km_s is negative when closing, positive when receding (Skyfield's sign)."""
     shift_hz = -sample.range_rate_km_s / SPEED_OF_LIGHT_KM_S * tx_freq_hz
     return DopplerResult(
         tx_freq_hz=tx_freq_hz,
@@ -35,5 +23,5 @@ def compute_doppler(sample: XYSample, tx_freq_hz: float) -> DopplerResult:
     )
 
 def doppler_series(samples: list[XYSample], tx_freq_hz: float) -> list[DopplerResult]:
-    """Convenience: compute Doppler for a whole precomputed trajectory series."""
+    """compute_doppler over a whole trajectory."""
     return [compute_doppler(s, tx_freq_hz) for s in samples]

@@ -1,4 +1,4 @@
-"""clock.py - one place that says what time it is (UTC). The simulator can shift it (GS_SIM_CLOCK)."""
+"""Single source of UTC time. The simulator can shift it with GS_SIM_CLOCK."""
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +6,7 @@ _offset = timedelta(0)
 
 
 def set_sim_start(iso: str) -> None:
-    """Make 'now' start at this ISO time (e.g. 2026-11-06T08:30:00+08:00) and run in real time."""
+    """Start 'now' at this ISO time (e.g. 2026-11-06T08:30:00+08:00), then run in real time."""
     global _offset
     t = datetime.fromisoformat(iso)
     if t.tzinfo is None:

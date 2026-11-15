@@ -501,7 +501,7 @@ function skyBase() {
   for (const [t, a] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) { const [x, y] = skyXY(a, -10); h += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${t === "N" ? BAD : SUB}">${t}</text>`; }
   return h;
 }
-const dish = () => { const P = S.pointing; return P && P.cal ? P : null; };       // the beam is only meaningful once north is known
+const dish = () => { const P = S.pointing; return P && P.cal ? P : null; };       // the beam only means something once north is known
 function beamMark(P) { const [x, y] = skyXY(P.az, Math.max(P.el, 0)); return `<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="${YC}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="1.8" fill="${YC}"/>`; }
 function sunSky() {
   const U = S.sun, P = dish();
@@ -551,7 +551,7 @@ const setHtml = (id, html) => { const e = $(id); if (e.dataset.k !== html) { e.d
 // ---------------------------------------------------------------- receive: live power, status, decoded media
 const RATES = {ops20: ["20 MBd", 9.6], linkx2: ["2 MBd", 1.9], field1: ["1 MBd", 0.5]};
 const rxOpt = {preset: "linkx2", iq: true, on: true, esn0: 12};
-try { Object.assign(rxOpt, JSON.parse(localStorage.getItem("gs-rx2") || "{}")); } catch (e) {}   // key bumped: old saved choice was ops20
+try { Object.assign(rxOpt, JSON.parse(localStorage.getItem("gs-rx2") || "{}")); } catch (e) {}   // key bumped, the old saved choice was ops20
 const saveRx = () => { try { localStorage.setItem("gs-rx2", JSON.stringify(rxOpt)); } catch (e) {} };
 const meterHist = [];                                          // [ms, dBFS] from the SDR power meter (about 4 per second)
 function rxCollect() {
@@ -643,7 +643,7 @@ function rxRender(root, kind) {
       (RH.details.picture_found ? `<figure class="pf"><img src="/api/demod/file?run=${encodeURIComponent(RH.details.run)}&name=${encodeURIComponent(RH.details.name)}" alt=""><figcaption>Received · ${RH.details.picture_identical ? "identical ✓" : "different ✕"}</figcaption></figure>`
                                       : `<figure class="pf"><div class="nopic">nothing received</div><figcaption>Received</figcaption></figure>`) : "";
   q("rhpics").hidden = !pics; setIn(q("rhpics"), pics);
-  // why it failed (the pill alone only says "failed")
+  // why it failed (the pill only says "failed")
   const why = !run && D.state === "failed" ? (D.error || D.msg || "unknown error") : "";
   const hint = /rehearsal input/.test(why) ? " → in the simulator set GS_SIM_IQ to a real .sc16 file that exists."
              : /No devices found|UHD|usrp/i.test(why) ? " → the receiver can't see the SDR: check the USB cable, and that no other program (or a second copy of this app) is using it."
@@ -662,8 +662,8 @@ function rxRender(root, kind) {
     if (rec.on) html += stat("Raw IQ saved", `${rec.gb.toFixed(1)} GB · ${rec.free_gb} GB free`, rec.warning ? "bad" : "");
   }
   setIn(q("stats"), html);
-  // power chart: only while something is being received (or a test picture is being sent); afterwards the last trace stays frozen.
-  // The free-running SDR power meter is not shown here any more: it just reads the noise floor and moves all the time.
+  // power chart: only while receiving (or sending a test picture); the last trace stays frozen afterwards.
+  // The free-running SDR power meter is not shown here any more, it just reads the noise floor and jumps around.
   let pts = [], src = "";
   if (run && D.mode !== "file" && (D.power || []).length > 1) { pts = D.power.filter(p => p[0] >= -120); src = "receiver input level, about twice a second"; }
   else if (!run && (D.power || []).length > 1 && (D.state === "done" || D.state === "stopped")) { pts = D.power; src = "last receive (frozen)"; }

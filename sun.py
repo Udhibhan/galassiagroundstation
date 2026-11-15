@@ -1,8 +1,8 @@
 """
-sun.py - Sun azimuth/elevation without any download (Meeus / NOAA low-precision algorithm).
-Accuracy ~0.01 deg (checked against Skyfield + DE421), plenty for a ~1.7 deg beam.
-Replaces track_sun.py's 17 MB de421.bsp download, which also did NOT apply refraction
-(.apparent().altaz() without temperature/pressure returns the airless position).
+Sun azimuth/elevation with no download (Meeus / NOAA low-precision algorithm).
+~0.01 deg vs Skyfield + DE421, plenty for a ~1.7 deg beam.
+Replaces track_sun.py's 17 MB de421.bsp download, which also skipped refraction
+(.apparent().altaz() without temperature/pressure gives the airless position).
 """
 import math
 from datetime import datetime
@@ -11,7 +11,7 @@ D2R = math.pi / 180.0
 
 
 def refraction_deg(el_deg: float, temp_c: float = 30.0, pressure_hpa: float = 1008.0) -> float:
-    """Bennett (1982), scaled for Singapore air. Optical; close enough for Ku-band above ~10 deg."""
+    """Bennett (1982), scaled for Singapore air. It is optical, but fine for Ku-band above ~10 deg."""
     if el_deg < -1.0:
         return 0.0
     r_arcmin = 1.02 / math.tan((el_deg + 10.3 / (el_deg + 5.11)) * D2R)

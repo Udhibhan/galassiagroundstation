@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""
-make_linkx_iq - turn a BBFRAME file into a Link X-like DVB-S2 IQ capture.
+"""make_linkx_iq - turn a BBFRAME file into a Link X-like DVB-S2 IQ capture.
 
-Used for test plan Step 3 / Test 3 (synthetic signal) and to check the whole
-laptop chain before the radio is powered:
+Used for test plan Step 3 / Test 3 (synthetic signal) and to check the whole laptop chain
+before the radio is powered:
 
-    tx_simulator.py -> BBFRAMEs -> make_linkx_iq.py -> .sc16
-        -> newrx_v2.py --input-file X.sc16 --bbframe-file X.bbframes
-        -> gs_rx.py --from-file X.bbframes --verify-hashes ...
+    tx_simulator.py        makes the BBFRAMEs
+    make_linkx_iq.py       BBFRAMEs to .sc16
+    newrx_v2.py --input-file X.sc16 --bbframe-file X.bbframes
+    gs_rx.py --from-file X.bbframes --verify-hashes ...
 
-The waveform follows RF ICD 1045318 rev 1.0 sec. 3.1: roll-off 0.20, pilots on,
-PL scrambling Gold code 0, DVB-S2 dummy PLFRAMEs while idle. The output is
-what `rx_samples_to_file --type short` writes: interleaved little-endian int16
-I/Q (sc16), or complex64 with --format fc32.
+Waveform per RF ICD 1045318 rev 1.0 sec. 3.1: roll-off 0.20, pilots on, PL scrambling Gold
+code 0, DVB-S2 dummy PLFRAMEs while idle. Output is what `rx_samples_to_file --type short`
+writes: interleaved little-endian int16 I/Q (sc16), or complex64 with --format fc32.
 
-Data PLFRAMEs come from gr-dtv. Dummy PLFRAMEs (gr-dtv cannot make them) are
-built here: PLHEADER with PLS 0, then 36 slots of unmodulated (1+j)/sqrt(2)
-symbols, PL-scrambled, no pilots (EN 302 307-1 sec. 5.5.1). The PLHEADER and
-scrambler code is checked against gr-dtv's own frames at start-up.
+Data PLFRAMEs come from gr-dtv. gr-dtv cannot make dummy PLFRAMEs, so they are built
+here: PLHEADER with PLS 0, then 36 slots of unmodulated (1+j)/sqrt(2) symbols,
+PL-scrambled, no pilots (EN 302 307-1 sec. 5.5.1). The PLHEADER and scrambler code are
+checked against gr-dtv's own frames at start-up.
 
   python3 make_linkx_iq.py --bbframes sim.bbframes --modcod 1 --out sim.sc16 \\
           --lead-dummies 200 --trail-dummies 200 --gap-dummies 2 --snr 10 --cfo 3000

@@ -5,7 +5,7 @@
   ~/radioconda/bin/python cdr_charts/motor_charts.py --date 20261113  # one day
   ... --include-sim                                                  # also rows from the simulated CAN link
   ... --logs DIR --out DIR
-Note: currents are polled at 1 Hz per axis (0.5 Hz while tracking), so short acceleration spikes can be missed.
+Currents are polled at 1 Hz per axis (0.5 Hz while tracking), so short acceleration spikes can be missed.
 """
 import argparse, csv, glob, os
 from datetime import datetime

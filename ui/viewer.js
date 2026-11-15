@@ -1,12 +1,12 @@
-// viewer.js - the 3D gimbal on the page. Loads /model/gimbal.glb (converted from "XY Dish Assembly.STEP") and moves
-// the X and Y axes from the live angles (window.GS.gimbal.axes.x/y.angle). No internet needed: three.js is in /vendor.
+// viewer.js - 3D gimbal on the page. Loads /model/gimbal.glb (converted from "XY Dish Assembly.STEP") and moves
+// the X and Y axes from the live angles (window.GS.gimbal.axes.x/y.angle). three.js is served from /vendor, no internet needed.
 //
 // Model (ui/model/gimbal_meta.json): metres, +Y up, nodes BASE / XGROUP / YGROUP (YGROUP is a child of XGROUP).
-//   X axis: xgroup.rotation.x          Y axis: ygroup.rotation.z (the physical 1.2 degree tilt is baked into rotation.x, kept)
+//   X axis: xgroup.rotation.x          Y axis: ygroup.rotation.z (the 1.2 degree physical tilt is baked into rotation.x, keep it)
 // Mount frame (kinematics.py): U = dish normal at zero = +Y, E = X axis = +X, N = U x E = -Z.
-//   +X tilts the dish toward South, +Y toward East.  The Y shaft is along +Z = -N, so +Y angle = rotation.z of -angle.
-// NOT real time: the pose is applied only when a move has finished (or every 15 s during continuous tracking), and the scene
-// is drawn once per change (or while you drag the camera). Nothing animates, so it costs almost nothing.
+//   +X tilts the dish toward South, +Y toward East. The Y shaft is along +Z = -N, so +Y angle = rotation.z of -angle.
+// Not real time: the pose is applied when a move finishes (or every 15 s while tracking), and the scene
+// is redrawn only on change or while dragging the camera. Nothing animates, so it is cheap.
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -60,7 +60,7 @@ function label(text, color) {
   return sp;
 }
 
-// true az/el (degrees) -> point on the sky dome around the dish. The mount may be rotated from true north by yaw: az_mount = az_true - yaw.
+// true az/el (degrees) to a point on the sky dome around the dish. The mount may be rotated from true north by yaw: az_mount = az_true - yaw.
 function skyPoint(az, el, r) {
   const yaw = (window.GS && window.GS.mount) ? window.GS.mount.yaw : 0;
   const a = (az - yaw) * D2R, e = el * D2R;
@@ -68,8 +68,8 @@ function skyPoint(az, el, r) {
     .add(U.clone().multiplyScalar(Math.sin(e))).multiplyScalar(r).add(centre);
 }
 
-// --- make the model cheap to draw: ~280 meshes -> a handful, drop tiny screws, colour by what moves ---------------------------------
-const PALETTE = { BASE: 0x5F6B77, XGROUP: 0x8795A2, YGROUP: 0xB4C0CB };      // fixed -> darker, moving -> lighter
+// --- make the model cheap to draw: ~280 meshes down to a handful, drop tiny screws, colour by what moves ---------------------------------
+const PALETTE = { BASE: 0x5F6B77, XGROUP: 0x8795A2, YGROUP: 0xB4C0CB };      // fixed parts darker, moving parts lighter
 function optimise(root) {
   root.updateMatrixWorld(true);
   const groups = ["BASE", "XGROUP", "YGROUP"].map(n => root.getObjectByName(n)).filter(Boolean);
@@ -176,7 +176,7 @@ async function init() {
   scene.add(grid);
   const ring = new THREE.Mesh(new THREE.RingGeometry(R * 0.992, R, 160), new THREE.MeshBasicMaterial({ color: 0x8895a1, side: THREE.DoubleSide, transparent: true, opacity: 0.7, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.copy(grid.position); scene.add(ring);
-  // letters are TRUE compass directions: placed in updateSky() rotated by the mount yaw (az_mount = az_true - yaw), like the Sun
+  // letters are true compass directions: placed in updateSky() rotated by the mount yaw (az_mount = az_true - yaw), like the Sun
   for (const [t, az, c] of [["N", 0, "#C9302C"], ["E", 90, "#46576A"], ["S", 180, "#46576A"], ["W", 270, "#46576A"]]) {
     const s = label(t, c); s.scale.setScalar(0.17);
     s.userData.az = az; s.userData.base = grid.position.clone(); s.userData.r = R * 1.1;
