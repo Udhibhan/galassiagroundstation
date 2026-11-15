@@ -1,0 +1,1892 @@
+options:
+  parameters:
+    author: Galassia-5 ground station
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: 'Galassia-5 ground-station receiver: B205mini record + monitor /
+      live decode / file decode, patched gr-dvbs2rx, optional TLE Doppler pre-comp,
+      GSSE/GSUFTP files. Parameters = command-line options (rx_unified.py --help).
+      README.md.'
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: rx_unified
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: G5 unified RX
+    window_size: (1500,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: antenna_sel
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: 0,1,1,1
+    label: RX port
+    label0: RX2
+    label1: TX/RX
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '''RX2'''
+    option1: '''TX/RX'''
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QVBoxLayout
+    type: string
+    value: g5gs.config.antenna_name(antenna)
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 188.0]
+    rotation: 0
+    state: enabled
+- name: cfg
+  id: variable
+  parameters:
+    comment: ''
+    value: g5gs.config.resolve(preset, sym_rate, sps, modcod, frame_size)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [330, 8]
+    rotation: 0
+    state: enabled
+- name: cfg_text
+  id: variable
+  parameters:
+    comment: ''
+    value: 'f''{mode}: {cfg.describe()}'' + (f'', TLE {tle}'' if tle else '', no TLE'')
+      + f'', AGC {agc} {agc_ref:g}, post-AGC {post_agc_ref:g}, period {pl_freq_est_period}''
+      + ('', dummy frames'' if dummy_frames else '''')'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [660, 80]
+    rotation: 0
+    state: enabled
+- name: gate_cfg
+  id: variable
+  parameters:
+    comment: ''
+    value: g5gs.auto_mode(mode, samp_rate, duty_period)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [816, 8.0]
+    rotation: 0
+    state: enabled
+- name: meta
+  id: variable
+  parameters:
+    comment: ''
+    value: '{''preset'': preset, ''modcod'': cfg.modcod, ''frame_size'': cfg.frame_size,
+      ''sym_rate'': rs, ''sps'': cfg.sps, ''tle'': tle, ''conj'': bool(conj)}'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 80]
+    rotation: 0
+    state: enabled
+- name: out_dir_eff
+  id: variable
+  parameters:
+    comment: ''
+    value: out_dir or g5gs.config.default_out_dir(mode, input_file, rec_dir)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [232, 80.0]
+    rotation: 0
+    state: enabled
+- name: panel_groups
+  id: variable
+  parameters:
+    comment: ''
+    value: '{''spectrum'': [''valve_spec_in'', ''valve_spec_pl'', ''qtgui_freq_sink_in'',
+      ''qtgui_freq_sink_pl''], ''constellation'': [''valve_const'', ''qtgui_const_sink_pl''],
+      ''status'': [''rx_status_panel_0''], ''doppler'': [''doppler_panel_0''], ''files'':
+      [''files_panel_0'']}'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [860, 80]
+    rotation: 0
+    state: enabled
+- name: pls_filter
+  id: variable
+  parameters:
+    comment: ''
+    value: dvbs2rx.pls_filter(dvbs2rx.dvbs2_pls(cfg.constellation, cfg.code_rate,
+      cfg.frame_size, True))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [912, 8.0]
+    rotation: 0
+    state: enabled
+- name: record_on
+  id: variable_qtgui_check_box
+  parameters:
+    comment: ''
+    'false': '0'
+    gui_hint: 1,1,1,1
+    label: Record to disk
+    'true': '1'
+    type: int
+    value: int(mode == 'record') if record < 0 else int(bool(record))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 8.0]
+    rotation: 0
+    state: enabled
+- name: rs
+  id: variable
+  parameters:
+    comment: ''
+    value: cfg.sym_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [728, 8.0]
+    rotation: 0
+    state: enabled
+- name: rx_gain_slider
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: 1,0,1,1
+    label: RX gain (dB)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '76'
+    value: rx_gain
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1060, 8]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: cfg.samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 8.0]
+    rotation: 0
+    state: enabled
+- name: agc
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Front AGC (agc3 / agc)
+    short_id: ''
+    type: str
+    value: agc3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 1232.0]
+    rotation: 0
+    state: enabled
+- name: agc3_attack
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: AGC3 attack
+    short_id: ''
+    type: eng_float
+    value: 1e-2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1232]
+    rotation: 0
+    state: enabled
+- name: agc3_decay
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: AGC3 decay
+    short_id: ''
+    type: eng_float
+    value: 1e-4
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1348]
+    rotation: 0
+    state: enabled
+- name: agc_rate
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: agc_cc rate
+    short_id: ''
+    type: eng_float
+    value: 1e-5
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1464]
+    rotation: 0
+    state: enabled
+- name: agc_ref
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Front AGC reference
+    short_id: ''
+    type: eng_float
+    value: '1.37'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1116]
+    rotation: 0
+    state: enabled
+- name: antenna
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: RX port (RX2 / TX/RX)
+    short_id: ''
+    type: str
+    value: RX2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [192, 1576.0]
+    rotation: 0
+    state: enabled
+- name: bbframe_file
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Also write BBFRAMEs to
+    short_id: ''
+    type: str
+    value: ~/received_files/linkx_binary_bbf.bbf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1600.0]
+    rotation: 0
+    state: enabled
+- name: centre_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Centre frequency
+    short_id: ''
+    type: eng_float
+    value: 1150e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1368.0]
+    rotation: 0
+    state: enabled
+- name: conj
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Conjugate input (1 = yes)
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1928]
+    rotation: 0
+    state: enabled
+- name: debug
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Debug level
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1928]
+    rotation: 0
+    state: enabled
+- name: device_args
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: UHD device args
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1812]
+    rotation: 0
+    state: enabled
+- name: doppler_panel_0
+  id: g5gs_doppler_panel
+  parameters:
+    active: 'True'
+    alias: ''
+    comment: ''
+    gui_hint: 'tabs@2: 0,0,1,1'
+    history_s: '900'
+    sym_rate: rs
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1736, 96.0]
+    rotation: 0
+    state: enabled
+- name: doppler_precomp_0
+  id: g5gs_doppler_precomp
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    dt: precomp_dt
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset_hz: precomp_offset_hz
+    rf_freq: rf_freq
+    samp_rate: samp_rate
+    sat: sat
+    sign: precomp_sign
+    start_utc: start_utc
+    station: station
+    tle: tle
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 176.0]
+    rotation: 0
+    state: enabled
+- name: dummy_frames
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Dummy frames (1 = on)
+    short_id: ''
+    type: intx
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 1696]
+    rotation: 0
+    state: enabled
+- name: duty_gate_0
+  id: g5gs_duty_gate
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mode: gate_cfg[0]
+    period: gate_cfg[1] or 5.0
+    queue_s: '0.5'
+    samp_rate: samp_rate
+    window: duty_window
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [264, 168.0]
+    rotation: 0
+    state: enabled
+- name: duty_period
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Monitor period (s, 0 = auto)
+    short_id: ''
+    type: eng_float
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1928]
+    rotation: 0
+    state: enabled
+- name: duty_window
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Monitor window (s)
+    short_id: ''
+    type: eng_float
+    value: '1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1812]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_bbdescrambler_bb_0
+  id: dvbs2rx_bbdescrambler_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    framesize: cfg.frame_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    rate: cfg.code_rate
+    standard: DVB-S2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 512.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_bch_decoder_bb_0
+  id: dvbs2rx_bch_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    debug_level: debug
+    framesize: cfg.frame_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    outputmode: OM_MESSAGE
+    rate: cfg.code_rate
+    standard: DVB-S2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 424.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_ldpc_decoder_bb_0
+  id: dvbs2rx_ldpc_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: cfg.constellation
+    debug_level: debug
+    framesize: cfg.frame_size
+    infomode: INFO_OFF
+    max_trials: ldpc_max_trials
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    outputmode: OM_MESSAGE
+    rate: cfg.code_rate
+    standard: DVB-S2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [792, 412.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_plsync_cc_0
+  id: dvbs2rx_plsync_cc
+  parameters:
+    acm_vcm: 'False'
+    affinity: ''
+    alias: ''
+    comment: ''
+    debug_level: debug
+    freq_est_period: pl_freq_est_period
+    gold_code: gold_code
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    multistream: bool(dummy_frames)
+    pls_filter_hi: pls_filter[1]
+    pls_filter_lo: pls_filter[0]
+    sps: cfg.sps
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [224, 492.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_rotator_cc_0
+  id: dvbs2rx_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [984, 240.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_symbol_sync_cc_0
+  id: dvbs2rx_symbol_sync_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    damping_factor: sym_sync_damping
+    interp_method: INTERP_POLYPHASE
+    loop_bw: sym_sync_loop_bw
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n_subfilt: rrc_nfilts
+    rolloff: rolloff
+    rrc_delay: rrc_delay
+    sps: cfg.sps
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1160, 220.0]
+    rotation: 0
+    state: enabled
+- name: dvbs2rx_xfecframe_demapper_cb_0
+  id: dvbs2rx_xfecframe_demapper_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: cfg.constellation
+    framesize: cfg.frame_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    rate: cfg.code_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 424.0]
+    rotation: 0
+    state: enabled
+- name: frame_size
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Frame size (empty = preset)
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1264.0]
+    rotation: 0
+    state: enabled
+- name: front_agc_0
+  id: g5gs_front_agc
+  parameters:
+    affinity: ''
+    alias: ''
+    attack: agc3_attack
+    comment: ''
+    decay: agc3_decay
+    gain: '1.0'
+    kind: agc
+    max_gain: '65536'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    rate: agc_rate
+    ref: agc_ref
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [768, 168.0]
+    rotation: 0
+    state: enabled
+- name: g5gs_doppler_panel_0
+  id: g5gs_doppler_panel
+  parameters:
+    active: 'True'
+    alias: ''
+    comment: ''
+    gui_hint: ''
+    history_s: '600'
+    sym_rate: 20e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [952, 568.0]
+    rotation: 0
+    state: enabled
+- name: gold_code
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Gold code
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 1472.0]
+    rotation: 0
+    state: enabled
+- name: gs_decoder_0
+  id: g5gs_gs_decoder
+  parameters:
+    affinity: ''
+    alias: ''
+    bbframe_file: bbframe_file
+    comment: ''
+    dump_payloads: ''''''
+    frame_len: cfg.kbch_bytes
+    isi: '-1'
+    out_dir: out_dir_eff
+    report_json: report_json
+    stack: stack
+    udp_forward: udp_forward
+    udp_port: '0'
+    udp_raw_out: udp_raw_out
+    udp_raw_ref: udp_raw_ref
+    verify_hashes: verify_hashes
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1336, 648.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: 'import g5gs
+
+      from gnuradio import dvbs2rx'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 8]
+    rotation: 0
+    state: enabled
+- name: input_file
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Input file (file mode)
+    short_id: ''
+    type: str
+    value: ~/g5/part2/unknown_gsuftp_test/linkx_binary.sc16
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 936.0]
+    rotation: 0
+    state: enabled
+- name: input_format
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Input format (auto / sc16 / fc32)
+    short_id: ''
+    type: str
+    value: auto
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1116]
+    rotation: 0
+    state: enabled
+- name: ldpc_max_trials
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: LDPC max iterations
+    short_id: ''
+    type: intx
+    value: '25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1696]
+    rotation: 0
+    state: enabled
+- name: modcod
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: MODCOD (empty = preset)
+    short_id: ''
+    type: str
+    value: '6'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1160.0]
+    rotation: 0
+    state: enabled
+- name: mode
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Mode (record / live / file)
+    short_id: ''
+    type: str
+    value: live
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [840, 936.0]
+    rotation: 0
+    state: enabled
+- name: out_dir
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Decoded files folder (empty = auto)
+    short_id: ''
+    type: str
+    value: ~/received_files
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [40, 936.0]
+    rotation: 0
+    state: enabled
+- name: panel_switch_0
+  id: g5gs_panel_switch
+  parameters:
+    alias: ''
+    comment: ''
+    groups: panel_groups
+    gui_hint: 0,0,1,1
+    main_row: '2'
+    panels: panels
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1352, 8.0]
+    rotation: 0
+    state: enabled
+- name: panels
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Panels at start (all / none / list)
+    short_id: ''
+    type: str
+    value: all
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 1812]
+    rotation: 0
+    state: enabled
+- name: pl_freq_est_period
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: PL freq. est. period (prime)
+    short_id: ''
+    type: intx
+    value: '17'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 1352.0]
+    rotation: 0
+    state: enabled
+- name: post_agc_0
+  id: g5gs_post_agc
+  parameters:
+    affinity: ''
+    alias: ''
+    attack: post_agc_attack
+    comment: ''
+    decay: post_agc_decay
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    ref: post_agc_ref
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [48, 448.0]
+    rotation: 0
+    state: enabled
+- name: post_agc_attack
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Post-AGC attack / symbol
+    short_id: ''
+    type: eng_float
+    value: 1e-3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1696]
+    rotation: 0
+    state: enabled
+- name: post_agc_decay
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Post-AGC decay / symbol
+    short_id: ''
+    type: eng_float
+    value: 1e-5
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1812]
+    rotation: 0
+    state: enabled
+- name: post_agc_ref
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Post-AGC ref (0 = off)
+    short_id: ''
+    type: eng_float
+    value: '1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 1580]
+    rotation: 0
+    state: enabled
+- name: precomp_dt
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pre-comp time shift (s)
+    short_id: ''
+    type: eng_float
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1580]
+    rotation: 0
+    state: enabled
+- name: precomp_offset_hz
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pre-comp extra offset (Hz)
+    short_id: ''
+    type: eng_float
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1696]
+    rotation: 0
+    state: enabled
+- name: precomp_sign
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pre-comp sign (+1 / -1)
+    short_id: ''
+    type: eng_float
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1464]
+    rotation: 0
+    state: enabled
+- name: preset
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Preset (ops20 / linkx2 / field1)
+    short_id: ''
+    type: str
+    value: linkx2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [520, 936.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_const_sink_pl
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"blue"'
+    color2: '"blue"'
+    color3: '"blue"'
+    color4: '"blue"'
+    color5: '"blue"'
+    color6: '"blue"'
+    color7: '"blue"'
+    color8: '"blue"'
+    color9: '"blue"'
+    comment: ''
+    grid: 'True'
+    gui_hint: 'tabs@1: 0,0,1,1'
+    label1: ''''''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"PL sync output (data, pilots, headers)"'
+    nconnections: '1'
+    size: '2048'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [752, 800.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_in
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"blue"'
+    color2: '"blue"'
+    color3: '"blue"'
+    color4: '"blue"'
+    color5: '"blue"'
+    color6: '"blue"'
+    color7: '"blue"'
+    color8: '"blue"'
+    color9: '"blue"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: centre_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: 'tabs@0: 0,0,1,1'
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"Input (before AGC)"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [504, 304.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_pl
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: rs
+    color1: '"blue"'
+    color10: '"blue"'
+    color2: '"blue"'
+    color3: '"blue"'
+    color4: '"blue"'
+    color5: '"blue"'
+    color6: '"blue"'
+    color7: '"blue"'
+    color8: '"blue"'
+    color9: '"blue"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: '0'
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: 'tabs@0: 1,0,1,1'
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"After PL sync (1 sample/symbol)"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [736, 640.0]
+    rotation: 0
+    state: enabled
+- name: realtime
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: File in real time (1 = yes)
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1232]
+    rotation: 0
+    state: enabled
+- name: rec_dir
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Recording folder
+    short_id: ''
+    type: str
+    value: ~/iq/recordings
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [208, 936.0]
+    rotation: 0
+    state: enabled
+- name: rec_prefix
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Recording prefix
+    short_id: ''
+    type: str
+    value: g5
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1116]
+    rotation: 0
+    state: enabled
+- name: record
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Record (-1 = auto, 0, 1)
+    short_id: ''
+    type: intx
+    value: '-1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1232]
+    rotation: 0
+    state: enabled
+- name: report_json
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: JSON report
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 1928.0]
+    rotation: 0
+    state: enabled
+- name: rf_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Downlink RF (Hz)
+    short_id: ''
+    type: eng_float
+    value: 13.95e9
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1348]
+    rotation: 0
+    state: enabled
+- name: rolloff
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Roll-off
+    short_id: ''
+    type: eng_float
+    value: '0.2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1348]
+    rotation: 0
+    state: enabled
+- name: rrc_delay
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: RRC delay
+    short_id: ''
+    type: intx
+    value: '25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1464]
+    rotation: 0
+    state: enabled
+- name: rrc_nfilts
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Polyphase RRC branches
+    short_id: ''
+    type: intx
+    value: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1580]
+    rotation: 0
+    state: enabled
+- name: rx_gain
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: RX gain (dB)
+    short_id: ''
+    type: eng_float
+    value: '30'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1472.0]
+    rotation: 0
+    state: enabled
+- name: rx_source_0
+  id: g5gs_rx_source
+  parameters:
+    affinity: ''
+    alias: ''
+    antenna: antenna_sel
+    centre_freq: centre_freq
+    comment: ''
+    conj: bool(conj)
+    device_args: device_args
+    input_file: input_file
+    input_format: input_format
+    lo_offset: '-1'
+    maxoutbuf: '0'
+    meta: meta
+    min_free: 2 * 2**30
+    minoutbuf: '0'
+    mode: mode
+    need_time: bool(tle)
+    realtime: bool(realtime)
+    rec_dir: rec_dir
+    rec_prefix: rec_prefix
+    record: bool(record_on)
+    rx_gain: rx_gain_slider
+    samp_rate: samp_rate
+    sim_input: sim_input
+    start_utc: start_utc
+    sym_rate: rs
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 188.0]
+    rotation: 0
+    state: enabled
+- name: rx_status_panel_0
+  id: g5gs_rx_status_panel
+  parameters:
+    active: 'True'
+    alias: ''
+    cfg_text: cfg_text
+    comment: ''
+    dummy_frames: bool(dummy_frames)
+    gui_hint: 2,0,1,1
+    sym_rate: rs
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 96.0]
+    rotation: 0
+    state: enabled
+- name: sat
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Satellite (if several sets)
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1116]
+    rotation: 0
+    state: enabled
+- name: sim_input
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Rehearsal sc16 instead of radio
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1464]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Samples/symbol (0 = preset)
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1056.0]
+    rotation: 0
+    state: enabled
+- name: stack
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: GSSE stack (auto / rev1.0 / rev1.2)
+    short_id: ''
+    type: str
+    value: auto
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1464]
+    rotation: 0
+    state: enabled
+- name: start_utc
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: First-sample UTC (file, override)
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 1348]
+    rotation: 0
+    state: enabled
+- name: station
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Station lat,lon,h
+    short_id: ''
+    type: str
+    value: 1.2977,103.7764,60
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 1232]
+    rotation: 0
+    state: enabled
+- name: sym_rate
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Symbol rate (0 = preset)
+    short_id: ''
+    type: eng_float
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 952.0]
+    rotation: 0
+    state: enabled
+- name: sym_sync_damping
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Symbol sync damping
+    short_id: ''
+    type: eng_float
+    value: '1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1232]
+    rotation: 0
+    state: enabled
+- name: sym_sync_loop_bw
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Symbol sync loop BW
+    short_id: ''
+    type: eng_float
+    value: '0.0045'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 1116]
+    rotation: 0
+    state: enabled
+- name: tabs
+  id: qtgui_tab_widget
+  parameters:
+    alias: ''
+    comment: ''
+    gui_hint: 2,1,1,1
+    label0: Spectrum
+    label1: Constellation
+    label10: Tab 10
+    label11: Tab 11
+    label12: Tab 12
+    label13: Tab 13
+    label14: Tab 14
+    label15: Tab 15
+    label16: Tab 16
+    label17: Tab 17
+    label18: Tab 18
+    label19: Tab 19
+    label2: Doppler / pass
+    label3: Files
+    label4: Tab 4
+    label5: Tab 5
+    label6: Tab 6
+    label7: Tab 7
+    label8: Tab 8
+    label9: Tab 9
+    num_tabs: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1408, 96.0]
+    rotation: 0
+    state: enabled
+- name: tle
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: TLE / OMM file (empty = off)
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [672, 936.0]
+    rotation: 0
+    state: enabled
+- name: udp_forward
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Also send BBFRAMEs to host:port
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1812]
+    rotation: 0
+    state: enabled
+- name: udp_raw_out
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: 'Branch C1: UDP payloads to'
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1928]
+    rotation: 0
+    state: enabled
+- name: udp_raw_ref
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: 'Branch C1: reference file'
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1352.0]
+    rotation: 0
+    state: enabled
+- name: valve_const
+  id: blocks_copy
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    enabled: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    showports: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [432, 736.0]
+    rotation: 0
+    state: enabled
+- name: valve_spec_in
+  id: blocks_copy
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    enabled: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    showports: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 320.0]
+    rotation: 0
+    state: enabled
+- name: valve_spec_pl
+  id: blocks_copy
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    enabled: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    showports: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [528, 608.0]
+    rotation: 0
+    state: enabled
+- name: verify_hashes
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: sha256sum file to check
+    short_id: ''
+    type: str
+    value: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 1580]
+    rotation: 0
+    state: enabled
+
+connections:
+- [doppler_precomp_0, '0', front_agc_0, '0']
+- [duty_gate_0, '0', doppler_precomp_0, '0']
+- [dvbs2rx_bbdescrambler_bb_0, '0', gs_decoder_0, '0']
+- [dvbs2rx_bch_decoder_bb_0, '0', dvbs2rx_bbdescrambler_bb_0, '0']
+- [dvbs2rx_ldpc_decoder_bb_0, '0', dvbs2rx_bch_decoder_bb_0, '0']
+- [dvbs2rx_ldpc_decoder_bb_0, llr_pdu, dvbs2rx_xfecframe_demapper_cb_0, llr_pdu]
+- [dvbs2rx_plsync_cc_0, '0', dvbs2rx_xfecframe_demapper_cb_0, '0']
+- [dvbs2rx_plsync_cc_0, '0', valve_const, '0']
+- [dvbs2rx_plsync_cc_0, '0', valve_spec_pl, '0']
+- [dvbs2rx_plsync_cc_0, rotator_phase_inc, dvbs2rx_rotator_cc_0, cmd]
+- [dvbs2rx_rotator_cc_0, '0', dvbs2rx_symbol_sync_cc_0, '0']
+- [dvbs2rx_symbol_sync_cc_0, '0', post_agc_0, '0']
+- [dvbs2rx_xfecframe_demapper_cb_0, '0', dvbs2rx_ldpc_decoder_bb_0, '0']
+- [front_agc_0, '0', dvbs2rx_rotator_cc_0, '0']
+- [post_agc_0, '0', dvbs2rx_plsync_cc_0, '0']
+- [rx_source_0, '0', duty_gate_0, '0']
+- [rx_source_0, '0', valve_spec_in, '0']
+- [valve_const, '0', qtgui_const_sink_pl, '0']
+- [valve_spec_in, '0', qtgui_freq_sink_in, '0']
+- [valve_spec_pl, '0', qtgui_freq_sink_pl, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0

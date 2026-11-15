@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galassia GS — AZ/EL to X/Y Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #EEF2F8;
+    --panel: #FFFFFF;
+    --panel-2: #F6F8FC;
+    --grid: #DCE3EE;
+    --border: #CDD7E5;
+    --text: #172233;
+    --muted: #5C6B82;
+    --accent: #C1720E;
+    --accent-soft: #EFCB98;
+    --accent2: #1B7F93;
+    --accent2-soft: #A9DCE4;
+    --danger: #B3401E;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B1220;
+      --panel: #121A2B;
+      --panel-2: #0E1626;
+      --grid: #22304A;
+      --border: #26334C;
+      --text: #E7ECF5;
+      --muted: #8CA0C2;
+      --accent: #E8A23D;
+      --accent-soft: #4A3820;
+      --accent2: #4FC3D9;
+      --accent2-soft: #163A42;
+      --danger: #E2725B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1220;
+    --panel: #121A2B;
+    --panel-2: #0E1626;
+    --grid: #22304A;
+    --border: #26334C;
+    --text: #E7ECF5;
+    --muted: #8CA0C2;
+    --accent: #E8A23D;
+    --accent-soft: #4A3820;
+    --accent2: #4FC3D9;
+    --accent2-soft: #163A42;
+    --danger: #E2725B;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.1px;
+  }
+  h1 span { color: var(--accent); }
+  .top-sub { color: var(--muted); font-size: 14px; max-width: 60ch; margin: 6px 0 0; }
+
+  .pipeline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .pipeline .stage {
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    padding: 5px 10px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+  .pipeline .arrow { color: var(--muted); padding: 0 2px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .panel + .panel { margin-top: 16px; }
+  .panel h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: var(--muted);
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .controls input[type=number] {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 8px;
+    width: 100%;
+  }
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  button {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #201400;
+  }
+  button.ghost { background: transparent; }
+  .speedgroup { display: flex; gap: 4px; }
+  .speedgroup button { padding: 7px 10px; }
+  .speedgroup button.active { background: var(--accent2); border-color: var(--accent2); color: #041418; }
+  input[type=range] {
+    flex: 1;
+    min-width: 160px;
+    accent-color: var(--accent);
+  }
+  .timelabel {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 58px;
+  }
+
+  .visual-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .visual-row { grid-template-columns: 1fr; }
+    .controls { grid-template-columns: repeat(2, 1fr); }
+  }
+  .visual-title {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  svg.diagram { width: 100%; height: auto; display: block; }
+  .axis-label { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10px; fill: var(--muted); }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .limit-line { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.6; }
+  .trace { fill: none; stroke: var(--accent2); stroke-width: 1.6; opacity: 0.55; }
+  .marker { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px 10px;
+    margin-top: 16px;
+  }
+  @media (max-width: 760px) { .readout { grid-template-columns: repeat(2, 1fr); } }
+  .stat { border-left: 2px solid var(--border); padding-left: 10px; }
+  .stat .k { font-size: 11.5px; color: var(--muted); }
+  .stat .v {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .stat.accent .v { color: var(--accent); }
+  .stat.accent2 .v { color: var(--accent2); }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-box { height: 210px; }
+  .chart-box canvas { width: 100% !important; height: 100% !important; }
+
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .note b { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Demo Galassia 5 Ground Station (AZ/EL to X/Y demonstration)</h1>
+      <p class="top-sub"></p>
+    <div class="pipeline">
+  </header>
+
+  <div class="panel">
+    <h2>Pass parameters</h2>
+    <div class="controls">
+      <label>Start azimuth (deg)
+        <input type="number" id="inAz0" value="35" min="0" max="359" step="1">
+      </label>
+      <label>End azimuth (deg)
+        <input type="number" id="inAz1" value="205" min="0" max="359" step="1">
+      </label>
+      <label>Peak elevation (deg)
+        <input type="number" id="inElMax" value="72" min="5" max="89" step="1">
+      </label>
+      <label>Pass duration (s)
+        <input type="number" id="inDur" value="480" min="60" max="1200" step="10">
+      </label>
+    </div>
+    <button class="primary" id="btnRegen" style="margin-top:2px;">Regenerate pass</button>
+  </div>
+
+  <div class="panel">
+    <h2>Playback</h2>
+    <div class="transport">
+      <button id="btnPlay">Play</button>
+      <div class="speedgroup" id="speedGroup">
+        <button data-speed="1">1x</button>
+        <button data-speed="10">10x</button>
+        <button data-speed="20" class="active">20x</button>
+        <button data-speed="50">50x</button>
+      </div>
+      <span class="timelabel" id="lblTime">00:00</span>
+      <input type="range" id="scrub" min="0" max="480" value="0" step="1">
+      <span class="timelabel" id="lblDur">08:00</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="visual-row">
+      <div>
+        <p class="visual-title">This circular plot is essentially the skyview, projected onto a flat 2d plane</p>
+        <svg class="diagram" id="skyPlot" viewBox="0 0 320 320"></svg>
+      </div>
+      <div>
+        <p class="visual-title">This chart represents the motion of the motors, its been clamped to +-90 as per our hardware limits</p>
+        <svg class="diagram" id="gimbalPlot" viewBox="0 0 320 320"></svg>
+      </div>
+    </div>
+
+    <div class="readout">
+      <div class="stat"><div class="k">elapsed</div><div class="v" id="rT">00:00</div></div>
+      <div class="stat"><div class="k">azimuth</div><div class="v" id="rAz">0.0&deg;</div></div>
+      <div class="stat"><div class="k">elevation</div><div class="v" id="rEl">0.0&deg;</div></div>
+      <div class="stat accent2"><div class="k">x angle</div><div class="v" id="rX">0.0&deg;</div></div>
+      <div class="stat accent2"><div class="k">y angle</div><div class="v" id="rY">0.0&deg;</div></div>
+      <div class="stat"><div class="k">x rate</div><div class="v" id="rXr">0.0&deg;/s</div></div>
+      <div class="stat"><div class="k">y rate</div><div class="v" id="rYr">0.0&deg;/s</div></div>
+      <div class="stat accent"><div class="k">x motor power</div><div class="v" id="rPx">0 W</div></div>
+      <div class="stat accent"><div class="k">y motor power</div><div class="v" id="rPy">0 W</div></div>
+      <div class="stat accent"><div class="k">total power</div><div class="v" id="rPt">0 W</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Telemetry over the pass</h2>
+    <div class="chart-grid">
+      <div class="chart-box"><canvas id="chAzEl"></canvas></div>
+      <div class="chart-box"><canvas id="chXY"></canvas></div>
+      <div class="chart-box"><canvas id="chRate"></canvas></div>
+      <div class="chart-box"><canvas id="chPower"></canvas></div>
+    </div>
+    <p class="note">
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>Live CAN Bus Traffic (can0)</h2>
+    <div id="canTerminal" style="background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; padding: 12px; height: 160px; overflow-y: auto; border-radius: 4px; line-height: 1.6; border: 1px solid var(--border);">
+      <!-- Real CAN frames will stream here -->
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  let az0 = 35, az1 = 205, elMax = 72, T = 480;
+  let series = null; // { t[], az[], el[], x[], y[], xr[], yr[], px[], py[], pt[] }
+
+  // using this to fake the azimiuth and elevation, so for now the azimuth is a straight line from end to end and elevation is a half sine wave
+  function azAt(t) { return az0 + (az1 - az0) * (t / T); }
+  function elAt(t) { return Math.max(0, elMax * Math.sin(Math.PI * Math.min(Math.max(t / T, 0), 1))); }
+
+  function azElToXY(azDeg, elDeg) {
+    const az = azDeg * Math.PI / 180, el = elDeg * Math.PI / 180;
+    const x = Math.atan2(-Math.cos(az), Math.tan(el)); //this will convert to x,y in radians, swap sin and cos if we want to algin the primary motor with east west instead
+    const y = Math.asin(Math.sin(az) * Math.cos(el));
+    return [clamp(x * 180 / Math.PI, -90, 90), clamp(y * 180 / Math.PI, -90, 90)];
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  const H = 0.2; // matches trajectory.py's finite-diff dt
+  function rateAt(t) {
+    const [xm, ym] = azElToXY(azAt(t - H), elAt(t - H));
+    const [xp, yp] = azElToXY(azAt(t + H), elAt(t + H));
+    return [(xp - xm) / (2 * H), (yp - ym) / (2 * H)];
+  }
+
+  // current model based on my random estimates
+  // current held would be 6-7 running, while the max would be around 17 (safe to assume)
+  // also this is based on if we have an 8kg weight around 1 meter from the axis held at 0
+  const I_HOLD = 6.5, K_V = 0.2, I_CAP = 17, VOLTS = 48;
+  function powerFromRate(rateDegS) {
+    const i = Math.min(I_HOLD + K_V * Math.abs(rateDegS), I_CAP);
+    return VOLTS * i;
+  }
+
+  function buildSeries() {
+    const dt = 1;
+    const t = [], az = [], el = [], x = [], y = [], xr = [], yr = [], px = [], py = [], pt = [];
+    for (let tt = 0; tt <= T; tt += dt) {
+      const a = azAt(tt), e = elAt(tt);
+      const [xd, yd] = azElToXY(a, e);
+      const [xrate, yrate] = rateAt(tt);
+      const pxv = powerFromRate(xrate), pyv = powerFromRate(yrate);
+      t.push(tt); az.push(a); el.push(e); x.push(xd); y.push(yd);
+      xr.push(xrate); yr.push(yrate); px.push(pxv); py.push(pyv); pt.push(pxv + pyv);
+    }
+    return { t, az, el, x, y, xr, yr, px, py, pt };
+  }
+
+  function sampleAt(tt) {
+    // series is on integer seconds; interpolate linearly for smooth animation
+    const i = clamp(Math.floor(tt), 0, series.t.length - 2);
+    const f = clamp(tt - series.t[i], 0, 1);
+    const lerp = (arr) => arr[i] + (arr[i + 1] - arr[i]) * f;
+    return {
+      az: lerp(series.az), el: lerp(series.el),
+      x: lerp(series.x), y: lerp(series.y),
+      xr: lerp(series.xr), yr: lerp(series.yr),
+      px: lerp(series.px), py: lerp(series.py), pt: lerp(series.pt),
+    };
+  }
+
+  // ---------- SVG: sky plot ----------
+  const skySvg = document.getElementById('skyPlot');
+  const SKY_CX = 160, SKY_CY = 160, SKY_R = 130;
+
+  function skyPoint(azDeg, elDeg) {
+    const r = (90 - elDeg) / 90 * SKY_R;
+    const a = (azDeg - 90) * Math.PI / 180; // az=0 (N) at top
+    return [SKY_CX + r * Math.cos(a), SKY_CY + r * Math.sin(a)];
+  }
+
+  function buildSkyStatic() {
+    let s = '';
+    [30, 60, 90, 120].forEach(r => {
+      s += `<circle class="grid-line" cx="${SKY_CX}" cy="${SKY_CY}" r="${r}" fill="none"/>`;
+    });
+    s += `<circle class="grid-line" cx="${SKY_CX}" cy="${SKY_CY}" r="${SKY_R}" fill="none"/>`;
+    for (let a = 0; a < 360; a += 30) {
+      const rad = (a - 90) * Math.PI / 180;
+      const x2 = SKY_CX + SKY_R * Math.cos(rad), y2 = SKY_CY + SKY_R * Math.sin(rad);
+      s += `<line class="grid-line" x1="${SKY_CX}" y1="${SKY_CY}" x2="${x2}" y2="${y2}"/>`;
+    }
+    const dirs = [['N', 0], ['E', 90], ['S', 180], ['W', 270]];
+    dirs.forEach(([label, a]) => {
+      const rad = (a - 90) * Math.PI / 180;
+      const x = SKY_CX + (SKY_R + 14) * Math.cos(rad), y = SKY_CY + (SKY_R + 14) * Math.sin(rad);
+      s += `<text class="axis-label" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle">${label}</text>`;
+    });
+    s += `<text class="axis-label" x="${SKY_CX}" y="${SKY_CY + 4}" text-anchor="middle">zenith</text>`;
+
+    let path = '';
+    for (let i = 0; i < series.t.length; i++) {
+      const [px, py] = skyPoint(series.az[i], series.el[i]);
+      path += (i === 0 ? 'M' : 'L') + px.toFixed(1) + ',' + py.toFixed(1) + ' ';
+    }
+    s += `<path class="trace" d="${path}"/>`;
+    s += `<circle class="marker" id="skyDot" cx="0" cy="0" r="6"/>`;
+    skySvg.innerHTML = s;
+  }
+
+  // ---------- SVG: gimbal plot ----------
+  const gimbalSvg = document.getElementById('gimbalPlot');
+  const G_CX = 160, G_CY = 160, G_S = 120; // +-90deg maps to +-G_S px
+
+  function gimbalPoint(xDeg, yDeg) {
+    return [G_CX + (xDeg / 90) * G_S, G_CY - (yDeg / 90) * G_S];
+  }
+
+  function buildGimbalStatic() {
+    let s = '';
+    [-90, -45, 0, 45, 90].forEach(v => {
+      const [gx] = gimbalPoint(v, 0);
+      const [, gy] = gimbalPoint(0, v);
+      s += `<line class="grid-line" x1="${gx}" y1="${G_CY - G_S}" x2="${gx}" y2="${G_CY + G_S}"/>`;
+      s += `<line class="grid-line" x1="${G_CX - G_S}" y1="${gy}" x2="${G_CX + G_S}" y2="${gy}"/>`;
+    });
+    s += `<rect class="limit-line" x="${G_CX - G_S}" y="${G_CY - G_S}" width="${2 * G_S}" height="${2 * G_S}" fill="none"/>`;
+    s += `<text class="axis-label" x="${G_CX + G_S + 4}" y="${G_CY + 4}">+90 X</text>`;
+    s += `<text class="axis-label" x="${G_CX - G_S - 34}" y="${G_CY + 4}">-90 X</text>`;
+    s += `<text class="axis-label" x="${G_CX - 12}" y="${G_CY - G_S - 6}">+90 Y</text>`;
+    s += `<text class="axis-label" x="${G_CX - 12}" y="${G_CY + G_S + 14}">-90 Y</text>`;
+
+    let path = '';
+    for (let i = 0; i < series.t.length; i++) {
+      const [gx, gy] = gimbalPoint(series.x[i], series.y[i]);
+      path += (i === 0 ? 'M' : 'L') + gx.toFixed(1) + ',' + gy.toFixed(1) + ' ';
+    }
+    s += `<path class="trace" d="${path}"/>`;
+    s += `<circle class="marker" id="gimbalDot" cx="0" cy="0" r="6"/>`;
+    gimbalSvg.innerHTML = s;
+  }
+
+  // ---------- charts ----------
+  let charts = {};
+  function makeChart(id, datasets, yLabel) {
+    const ctx = document.getElementById(id).getContext('2d');
+    const border = cssVar('--border'), grid = cssVar('--grid'), muted = cssVar('--muted'), text = cssVar('--text');
+    return new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { position: 'top', labels: { color: text, boxWidth: 12, font: { size: 11 } } },
+          tooltip: { enabled: false },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'time (s)', color: muted, font: { size: 10 } },
+            ticks: { color: muted, font: { size: 10 } },
+            grid: { color: grid },
+            border: { color: border },
+          },
+          y: {
+            title: { display: true, text: yLabel, color: muted, font: { size: 10 } },
+            ticks: { color: muted, font: { size: 10 } },
+            grid: { color: grid },
+            border: { color: border },
+          },
+        },
+        elements: { point: { radius: 0 }, line: { borderWidth: 2 } },
+      },
+    });
+  }
+
+  function lineDataset(label, data, color) {
+    return { label, data, borderColor: color, backgroundColor: color, tension: 0.15, pointRadius: 0 };
+  }
+  function markerDataset(color) {
+    return { label: '', data: [], borderColor: 'transparent', backgroundColor: color,
+      pointRadius: 5, pointHoverRadius: 5, showLine: false };
+  }
+
+  function buildCharts() {
+    Object.values(charts).forEach(c => c.destroy());
+    const accent = cssVar('--accent'), accent2 = cssVar('--accent2');
+    const zip = (xs, ys) => xs.map((x, i) => ({ x, y: ys[i] }));
+
+    charts.azel = makeChart('chAzEl', [
+      lineDataset('azimuth (deg)', zip(series.t, series.az), accent2),
+      lineDataset('elevation (deg)', zip(series.t, series.el), accent),
+      markerDataset(cssVar('--text')),
+    ], 'deg');
+
+    charts.xy = makeChart('chXY', [
+      lineDataset('x angle (deg)', zip(series.t, series.x), accent2),
+      lineDataset('y angle (deg)', zip(series.t, series.y), accent),
+      markerDataset(cssVar('--text')),
+    ], 'deg');
+
+    charts.rate = makeChart('chRate', [
+      lineDataset('x rate (deg/s)', zip(series.t, series.xr), accent2),
+      lineDataset('y rate (deg/s)', zip(series.t, series.yr), accent),
+      markerDataset(cssVar('--text')),
+    ], 'deg/s');
+
+    charts.power = makeChart('chPower', [
+      lineDataset('x motor (W)', zip(series.t, series.px), accent2),
+      lineDataset('y motor (W)', zip(series.t, series.py), accent),
+      markerDataset(cssVar('--text')),
+    ], 'watts (est.)');
+  }
+
+  function updateChartMarkers(tt, s) {
+    const set = (chart, idx, val) => {
+      chart.data.datasets[2].data = [{ x: tt, y: val }];
+      chart.update('none');
+    };
+    set(charts.azel, 2, null); // placeholder not used; set both dual values below
+    charts.azel.data.datasets[2].data = [{ x: tt, y: s.az }, { x: tt, y: s.el }];
+    charts.azel.update('none');
+    charts.xy.data.datasets[2].data = [{ x: tt, y: s.x }, { x: tt, y: s.y }];
+    charts.xy.update('none');
+    charts.rate.data.datasets[2].data = [{ x: tt, y: s.xr }, { x: tt, y: s.yr }];
+    charts.rate.update('none');
+    charts.power.data.datasets[2].data = [{ x: tt, y: s.px }, { x: tt, y: s.py }];
+    charts.power.update('none');
+  }
+
+  // ---------- playback ----------
+  let curT = 0, playing = false, speed = 20, lastFrame = null;
+  const scrub = document.getElementById('scrub');
+  const btnPlay = document.getElementById('btnPlay');
+
+  function fmt(t) {
+    t = Math.max(0, Math.round(t));
+    const m = Math.floor(t / 60), s = t % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+  // ILLUSTRATION ONLY: the real station sends 0x87 relative steps + 0x83 START (see gimbal.py), not speed frames
+  const COUNTS_PER_REV = 524288.0;   // eRob output shaft (bench-proven). Was 131072.
+  
+  function generateRealCanFrame(nodeId, rateDegS) { 
+    // tx_id is 0x640 + NodeID
+    const canId = (0x640 + nodeId).toString(16).toUpperCase();
+    
+    // Convert deg/s to counts/s and round to nearest integer
+    let counts = Math.round((rateDegS / 360.0) * COUNTS_PER_REV);
+    
+    // Convert to 32-bit signed hex (Two's complement for negative values)
+    if (counts < 0) {
+      counts = 0xFFFFFFFF + counts + 1;
+    }
+    const hexVal = counts.toString(16).padStart(8, '0').toUpperCase();
+    
+    // IDX_PROFILE_SPEED is 0x008A. Payload = Index (2 bytes) + Value (4 bytes)
+    const payload = "008A" + hexVal;
+    
+    return `cansend can0 ${canId}#${payload}`;
+  }
+
+  function render(tt) {
+    const s = sampleAt(tt);
+    const [skx, sky] = skyPoint(s.az, s.el);
+    document.getElementById('skyDot').setAttribute('cx', skx);
+    document.getElementById('skyDot').setAttribute('cy', sky);
+    const [gx, gy] = gimbalPoint(s.x, s.y);
+    document.getElementById('gimbalDot').setAttribute('cx', gx);
+    document.getElementById('gimbalDot').setAttribute('cy', gy);
+
+    document.getElementById('rT').textContent = fmt(tt);
+    document.getElementById('rAz').textContent = s.az.toFixed(1) + '\u00B0';
+    document.getElementById('rEl').textContent = s.el.toFixed(1) + '\u00B0';
+    document.getElementById('rX').textContent = s.x.toFixed(1) + '\u00B0';
+    document.getElementById('rY').textContent = s.y.toFixed(1) + '\u00B0';
+    document.getElementById('rXr').textContent = s.xr.toFixed(1) + '\u00B0/s';
+    document.getElementById('rYr').textContent = s.yr.toFixed(1) + '\u00B0/s';
+    document.getElementById('rPx').textContent = s.px.toFixed(1) + ' W';
+    document.getElementById('rPy').textContent = s.py.toFixed(1) + ' W';
+    document.getElementById('rPt').textContent = s.pt.toFixed(1) + ' W';
+
+    updateChartMarkers(tt, s);
+    scrub.value = tt;
+    document.getElementById('lblTime').textContent = fmt(tt);
+    // --- REAL CAN BUS TERMINAL LOGIC ---
+    const terminal = document.getElementById('canTerminal');
+    
+    const cmdX = generateRealCanFrame(1, s.xr);
+    const cmdY = generateRealCanFrame(2, s.yr);
+    
+    // Format it like a Linux terminal with comments for readability
+    const logLine = (cmd, axisName, rate) => {
+        const dir = rate >= 0 ? "+" : "-";
+        return `<span style="color:var(--muted)">(${fmt(tt)})</span> <span style="color:var(--accent2)">${cmd}</span> <span style="color:var(--muted)"># ${axisName} VEL ${dir}${Math.abs(rate).toFixed(2)}&deg;/s</span><br>`;
+    };
+
+    if (playing) {
+        // Only log at exactly 10Hz to match config.py control loop
+        if (Math.abs((tt * 10) % 1) < 0.05) {
+            terminal.innerHTML += logLine(cmdX, 'X_AXIS', s.xr);
+            terminal.innerHTML += logLine(cmdY, 'Y_AXIS', s.yr);
+            terminal.scrollTop = terminal.scrollHeight; // Auto-scroll
+        }
+    } else {
+        // If scrubbing paused, just show the current frame snapshot
+        terminal.innerHTML = logLine(cmdX, 'X_AXIS', s.xr) + logLine(cmdY, 'Y_AXIS', s.yr);
+    }
+  }
+
+  function frame(now) {
+    if (!playing) return;
+    if (lastFrame == null) lastFrame = now;
+    const dtReal = (now - lastFrame) / 1000;
+    lastFrame = now;
+    curT += dtReal * speed;
+    if (curT >= T) { curT = T; playing = false; btnPlay.textContent = 'Play'; }
+    render(curT);
+    if (playing) requestAnimationFrame(frame);
+  }
+
+  btnPlay.addEventListener('click', () => {
+    playing = !playing;
+    btnPlay.textContent = playing ? 'Pause' : 'Play';
+    if (playing) {
+      if (curT >= T) curT = 0;
+      lastFrame = null;
+      requestAnimationFrame(frame);
+    }
+  });
+
+  scrub.addEventListener('input', () => {
+    playing = false;
+    btnPlay.textContent = 'Play';
+    curT = Number(scrub.value);
+    render(curT);
+  });
+
+  document.getElementById('speedGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-speed]');
+    if (!btn) return;
+    speed = Number(btn.dataset.speed);
+    [...document.querySelectorAll('#speedGroup button')].forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+
+  document.getElementById('btnRegen').addEventListener('click', regenerate);
+
+  function regenerate() {
+    az0 = Number(document.getElementById('inAz0').value) || 0;
+    az1 = Number(document.getElementById('inAz1').value) || 0;
+    elMax = clamp(Number(document.getElementById('inElMax').value) || 10, 5, 89);
+    T = clamp(Number(document.getElementById('inDur').value) || 480, 60, 1200);
+
+    series = buildSeries();
+    scrub.max = T;
+    document.getElementById('lblDur').textContent = fmt(T);
+    buildSkyStatic();
+    buildGimbalStatic();
+    buildCharts();
+    playing = false;
+    btnPlay.textContent = 'Play';
+    curT = 0;
+    render(0);
+  }
+  regenerate();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{"t_utc": "2026-11-14T11:42:44.214+00:00", "t_rel_s": 0.02, "type": "prev_run", "run": "/home/udaiyan/Downloads/GS Final/GS Final/gs_v3/data/current_char/20261114_192721", "steps": ["3a-y+0-down", "3a-y+0-out", "3a-y+0-up"], "msg": "sweep peaks from data/current_char/20261114_192721: 3a-y+0-down, 3a-y+0-out, 3a-y+0-up"}
+{"t_utc": "2026-11-14T11:42:44.215+00:00", "t_rel_s": 0.02, "type": "run_start", "plan": "fast", "phases": ["1", "3b", "3d", "4a", "4c"], "msg": "run started, phases ['soak', '1', '3b', '3d', '4a', '4c']"}
+{"t_utc": "2026-11-14T11:42:44.216+00:00", "t_rel_s": 0.02, "type": "start_motors", "phase": "", "msg": "Start: setup both (motors off) -> 1 s -> wake X then Y (+0.5 deg and back)"}
+{"t_utc": "2026-11-14T11:42:55.004+00:00", "t_rel_s": 10.81, "type": "motors_on", "phase": "", "msg": "both motors ON and holding"}
+{"t_utc": "2026-11-14T11:42:55.093+00:00", "t_rel_s": 10.9, "type": "phase_start", "phase": "soak", "msg": "phase soak: Soak test (mandatory first hardware phase): slow X and Y moves while polling at the chosen rate, 2 min"}
+{"t_utc": "2026-11-14T11:43:51.450+00:00", "t_rel_s": 67.26, "type": "speed", "phase": "soak", "speed": 0.5, "result": "live", "msg": "profile speed 0.5 deg/s (live)"}
+{"t_utc": "2026-11-14T11:45:58.120+00:00", "t_rel_s": 193.92, "type": "speed", "phase": "soak", "speed": 1.0, "result": "live", "msg": "profile speed 1 deg/s (live)"}
+{"t_utc": "2026-11-14T11:45:58.122+00:00", "t_rel_s": 193.93, "type": "soak_ok", "phase": "soak", "moving_hz": 2.0, "msg": "soak test passed: no drop-outs at this poll rate"}
+{"t_utc": "2026-11-14T11:45:58.123+00:00", "t_rel_s": 193.93, "type": "phase_end", "phase": "soak", "seconds": 183.0, "msg": "phase soak done in 3m03s"}
+{"t_utc": "2026-11-14T11:45:58.143+00:00", "t_rel_s": 193.95, "type": "phase_start", "phase": "1", "msg": "phase 1: Baseline: HOME, both axes holding, 10 s"}
+{"t_utc": "2026-11-14T11:45:58.420+00:00", "t_rel_s": 194.22, "type": "speed", "phase": "1", "speed": 1.5, "result": "live", "msg": "profile speed 1.5 deg/s (live)"}
+{"t_utc": "2026-11-14T11:46:08.450+00:00", "t_rel_s": 204.25, "type": "phase_end", "phase": "1", "seconds": 10.3, "msg": "phase 1 done in 0m10s"}
+{"t_utc": "2026-11-14T11:46:08.463+00:00", "t_rel_s": 204.27, "type": "phase_start", "phase": "3b", "msg": "phase 3b: Y sweep at X = 0, 1.5 deg/s: 0 -> +80 -> -80 -> 0"}
+{"t_utc": "2026-11-14T11:49:49.237+00:00", "t_rel_s": 425.04, "type": "phase_end", "phase": "3b", "seconds": 220.8, "msg": "phase 3b done in 3m41s"}
+{"t_utc": "2026-11-14T11:49:49.251+00:00", "t_rel_s": 425.06, "type": "phase_start", "phase": "3d", "msg": "phase 3d: Both axes together: (+50,+50) -> (-50,-50) -> HOME at 1.5 deg/s"}
+{"t_utc": "2026-11-14T11:52:02.335+00:00", "t_rel_s": 558.14, "type": "abort", "reason": "Ctrl+C", "stopped": ["X", "Y"], "x_deg": -10.619, "y_deg": -10.649, "msg": "Ctrl+C -> STOP both axes (['X', 'Y'])"}
+{"t_utc": "2026-11-14T11:52:06.806+00:00", "t_rel_s": 562.61, "type": "operator", "question": "return HOME after abort?", "answer": "y"}
+{"t_utc": "2026-11-14T11:52:06.949+00:00", "t_rel_s": 562.75, "type": "speed", "phase": "abort-home", "speed": 1.0, "result": "live", "msg": "profile speed 1 deg/s (live)"}
+{"t_utc": "2026-11-14T11:52:07.279+00:00", "t_rel_s": 563.08, "type": "abort_home_failed", "reason": "move abort-home failed: no heartbeat from the web page for 2 s", "msg": "return HOME stopped: move abort-home failed: no heartbeat from the web page for 2 s"}

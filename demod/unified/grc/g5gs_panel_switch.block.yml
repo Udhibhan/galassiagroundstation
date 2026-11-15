@@ -1,0 +1,31 @@
+id: g5gs_panel_switch
+label: G5 Panel Switch
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: groups
+  label: 'Groups {name: [block ids]}'
+  dtype: raw
+  default: '{}'
+- id: panels
+  label: Panels on at start (all / none / list)
+  dtype: string
+  default: all
+- id: main_row
+  label: First grid row that may stretch
+  dtype: int
+  default: '2'
+  hide: part
+- id: gui_hint
+  label: GUI Hint
+  dtype: gui_hint
+  hide: part
+templates:
+  imports: import g5gs
+  make: "<%\n    win = 'self._%s_win'%id\n%>\\\ng5gs.PanelSwitch(self, groups=${groups}, panels=${panels},\
+    \ main_row=${main_row})\n${win} = self.${id}\n${gui_hint() % win}"
+documentation: 'One checkbox per group: unticking hides the widgets, pauses the panels and disables the
+
+  valves (Copy blocks) in front of the Qt sinks, so the panel costs no CPU.'
+file_format: 1

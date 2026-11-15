@@ -1,0 +1,48 @@
+id: g5gs_front_agc
+label: G5 Front AGC
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: kind
+  label: AGC (agc3 / agc)
+  dtype: string
+  default: agc3
+- id: ref
+  label: Reference
+  dtype: real
+  default: '1.37'
+- id: attack
+  label: AGC3 attack
+  dtype: real
+  default: 1e-2
+- id: decay
+  label: AGC3 decay
+  dtype: real
+  default: 1e-4
+- id: rate
+  label: agc_cc rate
+  dtype: real
+  default: 1e-5
+- id: gain
+  label: Initial gain
+  dtype: real
+  default: '1.0'
+  hide: part
+- id: max_gain
+  label: Max gain
+  dtype: real
+  default: '65536'
+  hide: part
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.front_agc(kind=${kind}, ref=${ref}, attack=${attack}, decay=${decay}, rate=${rate}, gain=${gain},
+    max_gain=${max_gain})
+documentation: 'AGC3 (default, ref 1.37: 03102026_agc_findings.md) or the original agc_cc.'
+file_format: 1

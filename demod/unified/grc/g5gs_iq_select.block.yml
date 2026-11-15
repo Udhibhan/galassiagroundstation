@@ -1,0 +1,34 @@
+id: g5gs_iq_select
+label: G5 IQ Select (generate / replay)
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: mode
+  label: Source (generate / replay)
+  dtype: string
+  default: generate
+- id: replay_file
+  label: Replay IQ file
+  dtype: string
+  default: ''
+- id: replay_format
+  label: Replay format (auto / sc16 / fc32)
+  dtype: string
+  default: auto
+  hide: part
+- id: replay_loop
+  label: Loop the replay
+  dtype: bool
+  default: 'True'
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.iq_select(mode=${mode}, replay_file=${replay_file}, replay_format=${replay_format}, replay_loop=${replay_loop})
+documentation: Pass the generated signal, or replay an IQ file.
+file_format: 1

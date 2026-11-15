@@ -1,0 +1,93 @@
+id: g5gs_tx_impairments
+label: G5 TX Impairments
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: samp_rate
+  label: Sample rate
+  dtype: real
+  default: 40e6
+- id: signal_power
+  label: Input mean power
+  dtype: real
+  default: '1.0'
+- id: rms_dbfs
+  label: Output RMS at level 0 dB (dBFS)
+  dtype: real
+  default: '-12'
+- id: level_db
+  label: Level (dB)
+  dtype: real
+  default: '0'
+- id: cfo_hz
+  label: CFO (Hz)
+  dtype: real
+  default: '0'
+- id: esn0_db
+  label: Es/N0 dB (empty = no noise)
+  dtype: string
+  default: ''
+- id: sps
+  label: Samples per symbol
+  dtype: int
+  default: '2'
+- id: schedule
+  label: Schedule (t:off, t:on, t:-20dB)
+  dtype: string
+  default: ''
+- id: tle
+  label: Doppler TLE (empty = off)
+  dtype: string
+  default: ''
+- id: sat
+  label: Satellite
+  dtype: string
+  default: ''
+  hide: part
+- id: station
+  label: Station lat,lon,h
+  dtype: string
+  default: 1.2977,103.7764,60
+  hide: part
+- id: rf_freq
+  label: RF (Hz)
+  dtype: real
+  default: 13.95e9
+  hide: part
+- id: doppler_start_utc
+  label: Doppler start (UTC / unix; empty = now)
+  dtype: raw
+  default: ''''''
+- id: doppler_dt
+  label: Doppler time shift (s)
+  dtype: real
+  default: '0'
+  hide: part
+- id: seed
+  label: Noise seed
+  dtype: int
+  default: '0'
+  hide: part
+- id: carrier
+  label: Carrier on
+  dtype: bool
+  default: 'True'
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.impairments(samp_rate=${samp_rate}, signal_power=${signal_power}, rms_dbfs=${rms_dbfs}, level_db=${level_db},
+    cfo_hz=${cfo_hz}, esn0_db=${esn0_db}, sps=${sps}, schedule=${schedule}, tle=${tle}, sat=${sat}, station=${station},
+    rf_freq=${rf_freq}, doppler_start_utc=${doppler_start_utc}, doppler_dt=${doppler_dt}, seed=${seed},
+    carrier=${carrier})
+  callbacks:
+  - set_level_db(${level_db})
+  - set_cfo(${cfo_hz})
+  - set_carrier(${carrier})
+documentation: Carrier on/off, level, transient schedule (signal time), CFO, TLE Doppler, AWGN.
+file_format: 1

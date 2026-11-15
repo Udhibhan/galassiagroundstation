@@ -1,0 +1,9 @@
+# Laptop (app.py): numpy, pyubx2, pyserial (+ uhd from radioconda). Pi (can_relay.py): nothing (stdlib + can-utils).
+python-can>=4.3        # optional: --iface socketcan only
+pyserial>=3.5          # Waveshare USB-CAN-A + GNSS
+pyubx2==1.4.0          # ZED-F9P UBX (NAV-PVT, NAV-RELPOSNED)
+skyfield>=1.49         # orbits (EarthSatellite.from_omm)
+numpy>=1.26            # REQUIRED (kinematics, Sun fits)
+requests>=2.31
+# uhd (Ettus Python API) comes from radioconda / the UHD install, not pip. Optional: only the Sun scan needs it.
+# removed: pynmea2 (NMEA reader replaced by UBX)

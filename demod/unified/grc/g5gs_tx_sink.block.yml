@@ -1,0 +1,79 @@
+id: g5gs_tx_sink
+label: G5 TX Sink
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: mode
+  label: Output (b205 / file)
+  dtype: string
+  default: b205
+- id: samp_rate
+  label: Sample rate
+  dtype: real
+  default: 40e6
+- id: sym_rate
+  label: Symbol rate
+  dtype: real
+  default: 20e6
+- id: rolloff
+  label: Roll-off
+  dtype: real
+  default: '0.2'
+  hide: part
+- id: centre_freq
+  label: Centre frequency
+  dtype: real
+  default: 1195e6
+- id: tx_gain
+  label: TX gain (dB)
+  dtype: real
+  default: '0'
+- id: device_args
+  label: UHD device args
+  dtype: string
+  default: ''
+- id: lo_offset
+  label: LO offset (-1 = auto)
+  dtype: real
+  default: '-1'
+  hide: part
+- id: output_file
+  label: Output file
+  dtype: string
+  default: ''
+- id: output_format
+  label: Output format (auto / sc16 / fc32)
+  dtype: string
+  default: auto
+- id: duration
+  label: 'File: seconds (0 = until the payload ends)'
+  dtype: real
+  default: '0'
+- id: throttle
+  label: 'File: real time'
+  dtype: bool
+  default: 'False'
+- id: start_unix
+  label: First-sample time for the sidecar
+  dtype: raw
+  default: None
+  hide: part
+- id: meta
+  label: Extra JSON metadata
+  dtype: raw
+  default: '{}'
+  hide: part
+inputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.tx_sink(mode=${mode}, samp_rate=${samp_rate}, sym_rate=${sym_rate}, rolloff=${rolloff}, centre_freq=${centre_freq},
+    tx_gain=${tx_gain}, device_args=${device_args}, lo_offset=${lo_offset}, output_file=${output_file},
+    output_format=${output_format}, duration=${duration}, throttle=${throttle}, start_unix=${start_unix},
+    meta=${meta})
+  callbacks:
+  - set_tx_gain(${tx_gain})
+documentation: B205mini (TX/RX) or an IQ file with .start/.json sidecars.
+file_format: 1

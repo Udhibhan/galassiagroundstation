@@ -1,0 +1,503 @@
+{
+  "run_dir": "20261114_combined",
+  "simulated": false,
+  "label": "HARDWARE",
+  "notes": "register 0x0008 is MOTOR current, not 48 V supply current. 'Total' = |I_X| + |I_Y|. Supply current is only known from the clamp-meter readings.",
+  "rated_A": {
+    "x": 25.0,
+    "y": 18.0
+  },
+  "soft_stop_A": {
+    "x": 15.0,
+    "y": 11.0
+  },
+  "n_samples": 2390,
+  "aborted": null,
+  "duration_s": 1922.1,
+  "t_first_utc": "2026-11-14T11:29:52.049+00:00",
+  "t_last_utc": "2026-11-14T12:42:35.282+00:00",
+  "phases_logged": [
+    "3a",
+    "1",
+    "3b",
+    "3e",
+    "soak",
+    "4a",
+    "4c",
+    "end"
+  ],
+  "peak": {
+    "x": {
+      "t_utc": "2026-11-14T12:36:19.715+00:00",
+      "t_rel_s": 1696.7,
+      "phase": "3e",
+      "step_id": "3e-pm-back",
+      "x_deg": 67.12,
+      "y_deg": -67.05,
+      "ix_a": -7.816,
+      "iy_a": 1.542,
+      "itotal_a": 9.358,
+      "x_dir": "-",
+      "y_dir": "+",
+      "x_motion": "lifting",
+      "y_motion": "lifting",
+      "speed_deg_s": 1.0,
+      "pct_rating": 31.3
+    },
+    "y": {
+      "t_utc": "2026-11-14T11:47:29.801+00:00",
+      "t_rel_s": 703.9,
+      "phase": "3b",
+      "step_id": "3b-x+0-up",
+      "x_deg": -0.01,
+      "y_deg": 43.08,
+      "ix_a": -0.494,
+      "iy_a": -5.233,
+      "itotal_a": 5.727,
+      "x_dir": "holding",
+      "y_dir": "-",
+      "x_motion": "holding",
+      "y_motion": "lifting",
+      "speed_deg_s": 1.5,
+      "pct_rating": 29.1
+    },
+    "total": {
+      "t_utc": "2026-11-14T11:32:58.601+00:00",
+      "t_rel_s": 336.7,
+      "phase": "3a",
+      "step_id": "3a-y+0-down",
+      "x_deg": -47.38,
+      "y_deg": -0.0,
+      "ix_a": 5.978,
+      "iy_a": -3.502,
+      "itotal_a": 9.48,
+      "x_dir": "+",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 23.9
+    }
+  },
+  "grid": {
+    "n_cells": 0,
+    "n_measured": 0,
+    "n_skipped": 0,
+    "skipped_reasons": []
+  },
+  "breakaway": {
+    "x": {
+      "t_utc": "2026-11-14T12:40:56.787+00:00",
+      "t_rel_s": 1973.8,
+      "phase": "4a",
+      "step_id": "4a-x-lift",
+      "x_deg": 57.6,
+      "y_deg": 60.0,
+      "ix_a": -3.616,
+      "iy_a": null,
+      "itotal_a": null,
+      "x_dir": "-",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 14.5,
+      "first_sample_after_start_s": 0.0,
+      "hold_mean_before_A": 0.874,
+      "note": "drive not polled in the first 1 s after START (bench rule): peak is from the 1-3 s window"
+    },
+    "y": {
+      "t_utc": "2026-11-14T12:41:13.121+00:00",
+      "t_rel_s": 1990.1,
+      "phase": "4a",
+      "step_id": "4a-y-lift",
+      "x_deg": 60.0,
+      "y_deg": 58.6,
+      "ix_a": null,
+      "iy_a": -2.746,
+      "itotal_a": null,
+      "x_dir": "holding",
+      "y_dir": "-",
+      "x_motion": "holding",
+      "y_motion": "lifting",
+      "speed_deg_s": 1.5,
+      "pct_rating": 15.3,
+      "first_sample_after_start_s": 0.0,
+      "hold_mean_before_A": 1.219,
+      "note": "drive not polled in the first 1 s after START (bench rule): peak is from the 1-3 s window"
+    }
+  },
+  "reversal": {},
+  "thermal": {
+    "duration_s": 31.0,
+    "temp_x_start_c": 34.0,
+    "temp_x_end_c": 34.0,
+    "temp_x_max_c": 34.0,
+    "rise_x_c": 0.0,
+    "temp_y_start_c": 35.0,
+    "temp_y_end_c": 35.0,
+    "temp_y_max_c": 35.0,
+    "rise_y_c": 0.0,
+    "peak": {
+      "t_utc": "2026-11-14T12:41:16.857+00:00",
+      "t_rel_s": 1993.9,
+      "phase": "4c",
+      "step_id": "4c-approach",
+      "x_deg": 60.0,
+      "y_deg": 55.0,
+      "ix_a": -1.759,
+      "iy_a": -1.756,
+      "itotal_a": 3.515,
+      "x_dir": "holding",
+      "y_dir": "holding",
+      "x_motion": "holding",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 9.8
+    },
+    "pose": [
+      60.0,
+      59.8
+    ],
+    "itotal_mean_A": 1.907
+  },
+  "cases": {
+    "peak_holding": {
+      "t_utc": "2026-11-14T12:40:59.715+00:00",
+      "t_rel_s": 1976.7,
+      "phase": "4a",
+      "step_id": "4a-x-lift",
+      "x_deg": 55.0,
+      "y_deg": 60.0,
+      "ix_a": -2.847,
+      "iy_a": -2.245,
+      "itotal_a": 5.092,
+      "x_dir": "holding",
+      "y_dir": "holding",
+      "x_motion": "holding",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 12.5
+    },
+    "peak_lifting_x": {
+      "t_utc": "2026-11-14T11:30:47.828+00:00",
+      "t_rel_s": 205.9,
+      "phase": "3a",
+      "step_id": "3a-y+0-up",
+      "x_deg": 79.59,
+      "y_deg": -0.0,
+      "ix_a": -7.66,
+      "iy_a": -0.035,
+      "itotal_a": 7.695,
+      "x_dir": "-",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 30.6
+    },
+    "peak_lifting_y": {
+      "t_utc": "2026-11-14T11:47:29.801+00:00",
+      "t_rel_s": 703.9,
+      "phase": "3b",
+      "step_id": "3b-x+0-up",
+      "x_deg": -0.01,
+      "y_deg": 43.08,
+      "ix_a": -0.494,
+      "iy_a": -5.233,
+      "itotal_a": 5.727,
+      "x_dir": "holding",
+      "y_dir": "-",
+      "x_motion": "holding",
+      "y_motion": "lifting",
+      "speed_deg_s": 1.5,
+      "pct_rating": 29.1
+    },
+    "both_lifting": {
+      "t_utc": "2026-11-14T12:33:46.834+00:00",
+      "t_rel_s": 1543.9,
+      "phase": "3e",
+      "step_id": "3e-mm-back",
+      "x_deg": -65.23,
+      "y_deg": -65.15,
+      "ix_a": 7.334,
+      "iy_a": 2.129,
+      "itotal_a": 9.463,
+      "x_dir": "+",
+      "y_dir": "+",
+      "x_motion": "lifting",
+      "y_motion": "lifting",
+      "speed_deg_s": 1.0,
+      "pct_rating": 29.3
+    },
+    "breakaway": {
+      "t_utc": "2026-11-14T12:40:56.787+00:00",
+      "t_rel_s": 1973.8,
+      "phase": "4a",
+      "step_id": "4a-x-lift",
+      "x_deg": 57.6,
+      "y_deg": 60.0,
+      "ix_a": -3.616,
+      "iy_a": null,
+      "itotal_a": null,
+      "x_dir": "-",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 14.5,
+      "first_sample_after_start_s": 0.0,
+      "hold_mean_before_A": 0.874,
+      "note": "drive not polled in the first 1 s after START (bench rule): peak is from the 1-3 s window"
+    },
+    "long_hold": {
+      "t_utc": "2026-11-14T12:41:16.857+00:00",
+      "t_rel_s": 1993.9,
+      "phase": "4c",
+      "step_id": "4c-approach",
+      "x_deg": 60.0,
+      "y_deg": 55.0,
+      "ix_a": -1.759,
+      "iy_a": -1.756,
+      "itotal_a": 3.515,
+      "x_dir": "holding",
+      "y_dir": "holding",
+      "x_motion": "holding",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 9.8,
+      "temp_rise_c": 0.0,
+      "duration_s": 31.0
+    }
+  },
+  "clamp_meter": [],
+  "current_stop_trips": [],
+  "diag_reach": {
+    "+X+Y": {
+      "x_deg": 71.991,
+      "y_deg": 71.998,
+      "how": "operator STOP",
+      "step": "3e-pp-out",
+      "ix_max_a": 1.507,
+      "iy_max_a": 1.98,
+      "itotal_max_a": 3.073,
+      "return_recorded": false
+    },
+    "-X-Y": {
+      "x_deg": -74.349,
+      "y_deg": -74.358,
+      "how": "operator STOP",
+      "step": "3e-mm-out",
+      "ix_max_a": 3.932,
+      "iy_max_a": 3.604,
+      "itotal_max_a": 4.9,
+      "return_recorded": true
+    },
+    "+X-Y": {
+      "x_deg": 73.939,
+      "y_deg": -73.987,
+      "how": "operator STOP",
+      "step": "3e-pm-out",
+      "ix_max_a": 3.852,
+      "iy_max_a": 3.417,
+      "itotal_max_a": 4.915,
+      "return_recorded": true
+    },
+    "-X+Y": {
+      "x_deg": -75.821,
+      "y_deg": 75.813,
+      "how": "operator STOP",
+      "step": "3e-mp-out",
+      "ix_max_a": 1.342,
+      "iy_max_a": 2.2,
+      "itotal_max_a": 2.989,
+      "return_recorded": true
+    }
+  },
+  "diag_peak": {
+    "itotal_a": 9.463,
+    "x_deg": -65.23,
+    "y_deg": -65.15,
+    "step_id": "3e-mm-back"
+  },
+  "dropouts": [],
+  "sweeps": [
+    "3a-y+0",
+    "3b-x+0"
+  ],
+  "n_sweeps": 2,
+  "sample_rate": {
+    "moving_hz_median": 1.82,
+    "holding_hz_median": 0.97
+  },
+  "sample_rate_cfg": {
+    "moving_hz": 2.0,
+    "hold_hz": 1.0,
+    "fast_hz": 4.0,
+    "thermal_hold_hz": 0.1
+  },
+  "temp_x_c": {
+    "first": 33.0,
+    "max": 34.0,
+    "last": 34.0
+  },
+  "temp_y_c": {
+    "first": 35.0,
+    "max": 36.0,
+    "last": 36.0
+  },
+  "bus_v": {
+    "min": 46.83,
+    "max": 47.52
+  },
+  "vs_software_stop": [
+    {
+      "axis": "x",
+      "peak_A": 7.816,
+      "soft_stop_A": 15.0,
+      "pct_of_stop": 52.1,
+      "within_20pct": false
+    },
+    {
+      "axis": "y",
+      "peak_A": 5.233,
+      "soft_stop_A": 11.0,
+      "pct_of_stop": 47.6,
+      "within_20pct": false
+    }
+  ],
+  "fit": {
+    "x": {
+      "axis": "x",
+      "n": 391,
+      "phases": [
+        "3a",
+        "3b",
+        "3c"
+      ],
+      "r2": 0.9948,
+      "rms_resid_A": 0.275,
+      "model": "I = c0 + F*sign(motion) - G+*sin(a)[a>=0] - G-*sin(a)[a<0]",
+      "c0_A": [
+        0.044,
+        0.031
+      ],
+      "F_A": [
+        1.662,
+        0.014
+      ],
+      "G_pos_A": [
+        5.173,
+        0.051
+      ],
+      "G_neg_A": [
+        5.124,
+        0.051
+      ],
+      "cog": {
+        "model": "I = F*sign(motion) + A*sin(a) + B*cos(a)",
+        "F_A": [
+          1.662,
+          0.014
+        ],
+        "A_A": [
+          -5.149,
+          0.021
+        ],
+        "B_A": [
+          0.042,
+          0.019
+        ],
+        "G_A": 5.149,
+        "balance_deg": 0.5,
+        "r2": 0.9948,
+        "rms_resid_A": 0.274
+      },
+      "per_line": [
+        {
+          "y_deg": -0.0,
+          "G_A": [
+            5.149,
+            0.021
+          ],
+          "F_A": [
+            1.662,
+            0.014
+          ],
+          "n": 391,
+          "r2": 0.9948
+        }
+      ]
+    },
+    "y": {
+      "axis": "y",
+      "n": 392,
+      "phases": [
+        "3a",
+        "3b",
+        "3c"
+      ],
+      "r2": 0.9842,
+      "rms_resid_A": 0.294,
+      "model": "I = c0 + F*sign(motion) - G+*sin(a)[a>=0] - G-*sin(a)[a<0]",
+      "c0_A": [
+        -2.819,
+        0.033
+      ],
+      "F_A": [
+        1.262,
+        0.015
+      ],
+      "G_pos_A": [
+        0.71,
+        0.054
+      ],
+      "G_neg_A": [
+        4.862,
+        0.054
+      ],
+      "cog": {
+        "model": "I = F*sign(motion) + A*sin(a) + B*cos(a)",
+        "F_A": [
+          1.26,
+          0.011
+        ],
+        "A_A": [
+          -2.784,
+          0.017
+        ],
+        "B_A": [
+          -2.3,
+          0.015
+        ],
+        "G_A": 3.612,
+        "balance_deg": -39.6,
+        "r2": 0.9908,
+        "rms_resid_A": 0.223
+      },
+      "per_line": [
+        {
+          "x_deg": -0.0,
+          "G_A": [
+            2.788,
+            0.053
+          ],
+          "F_A": [
+            1.254,
+            0.035
+          ],
+          "n": 392,
+          "r2": 0.9118
+        }
+      ]
+    },
+    "nov7_reference": {
+      "friction_A": [
+        1.65,
+        1.7
+      ],
+      "G_pos_A": 7.6,
+      "G_neg_A": 6.6
+    }
+  }
+}

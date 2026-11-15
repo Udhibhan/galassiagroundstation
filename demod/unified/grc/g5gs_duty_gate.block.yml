@@ -1,0 +1,42 @@
+id: g5gs_duty_gate
+label: G5 Duty Gate
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: mode
+  label: Mode (pass / drop / duty)
+  dtype: string
+  default: pass
+- id: samp_rate
+  label: Sample rate
+  dtype: real
+  default: 40e6
+- id: window
+  label: Window (s)
+  dtype: real
+  default: '1.0'
+- id: period
+  label: Period (s)
+  dtype: real
+  default: '5.0'
+- id: queue_s
+  label: Queue (s)
+  dtype: real
+  default: '0.5'
+  hide: part
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.duty_gate(mode=${mode}, samp_rate=${samp_rate}, window=${window}, period=${period}, queue_s=${queue_s})
+documentation: 'Decouples the demod from the full-rate stream (g5gs/gate.py). pass: direct (file mode).
+
+  drop: everything while the demod keeps up, whole chunks dropped when it falls behind.
+
+  duty: window s out of every period s (record + monitor at 40 MS/s).'
+file_format: 1

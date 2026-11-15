@@ -1,0 +1,31 @@
+id: g5gs_post_agc
+label: G5 Post-AGC
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: ref
+  label: Reference (0 = off)
+  dtype: real
+  default: '1.0'
+- id: attack
+  label: Attack per symbol
+  dtype: real
+  default: 1e-3
+- id: decay
+  label: Decay per symbol
+  dtype: real
+  default: 1e-5
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.post_agc(ref=${ref}, attack=${attack}, decay=${decay})
+documentation: 'agc2_cc between symbol sync and PL sync, holding the PL sync input at ~1
+
+  (19102026_postagc_results.md). ref 0 = bypass.'
+file_format: 1

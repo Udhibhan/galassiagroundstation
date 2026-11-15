@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X-Y Pass Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f1f1ef;
+    --surface: #fcfcfb;
+    --surface-2: #f5f5f3;
+    --border: #dcdbd6;
+    --grid: #e6e5e1;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --muted: #8a8984;
+    --land: #e2e1dc;
+    --x: #2a78d6;
+    --y: #eb6834;
+    --track: #0b0b0b;
+    --warn-bg: #fdf3dc;
+    --warn: #8a5a00;
+    --err: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111110;
+      --surface: #1a1a19;
+      --surface-2: #222220;
+      --border: #34342f;
+      --grid: #2c2c2a;
+      --text: #f0efec;
+      --text-2: #c3c2b7;
+      --muted: #8f8e86;
+      --land: #2f2f2c;
+      --x: #3987e5;
+      --y: #d95926;
+      --track: #f0efec;
+      --warn-bg: #3a2e12;
+      --warn: #f2c25c;
+      --err: #f2867e;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #222220;
+    --border: #34342f;
+    --grid: #2c2c2a;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --muted: #8f8e86;
+    --land: #2f2f2c;
+    --x: #3987e5;
+    --y: #d95926;
+    --track: #f0efec;
+    --warn-bg: #3a2e12;
+    --warn: #f2c25c;
+    --err: #f2867e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 2px; }
+  .sub { color: var(--text-2); margin: 0 0 16px; }
+  h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; min-width: 0; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--text-2); }
+  input, select, button {
+    font: inherit; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px;
+  }
+  input#sat { width: 220px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--text); color: var(--surface); border-color: var(--text); font-weight: 600; padding: 7px 22px; }
+  button.primary:disabled { opacity: .6; cursor: wait; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 7px 7px 0; }
+  .seg button.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+  .scrub { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; }
+  .scrub input { flex: 1; padding: 0; }
+
+  .msg { margin-top: 10px; padding: 8px 12px; border-radius: 7px; display: none; }
+  .msg.warn { display: block; background: var(--warn-bg); color: var(--warn); }
+  .msg.err { display: block; background: var(--warn-bg); color: var(--err); }
+  .meta { margin-top: 10px; color: var(--text-2); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .meta b { color: var(--text); font-weight: 500; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .tile .k { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .tile .v { font: 500 20px/1.2 "IBM Plex Mono", monospace; margin-top: 2px; white-space: nowrap; }
+  .tile .s { font-size: 11.5px; color: var(--muted); }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+  .sw.x { background: var(--x); } .sw.y { background: var(--y); }
+
+  .grid3 { display: grid; grid-template-columns: 1.15fr 0.85fr 1.2fr; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 980px) { .grid3, .grid2 { grid-template-columns: 1fr; } }
+  canvas.view { width: 100%; height: 320px; display: block; touch-action: none; }
+  #gimbal { cursor: grab; }
+  svg#sky { width: 100%; height: 320px; display: block; }
+  .chartbox { position: relative; height: 210px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 0; color: var(--text-2); font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .head .note { font-size: 12px; color: var(--muted); }
+
+  .can { margin-top: 12px; }
+  .can pre { margin: 0; font: 12.5px/1.6 "IBM Plex Mono", monospace; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+  .can pre .c { color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 60px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>X-Y gimbal pass simulator</h1>
+  <p class="sub">Live TLE from CelesTrak or SpaceX → virtual station right under the satellite → dish starts at zenith and tracks it. Simulation only: no CAN traffic, no motors.</p>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="field">
+        <label for="source">TLE source</label>
+        <select id="source">
+          <option value="celestrak">CelesTrak GP (NORAD)</option>
+          <option value="spacex">SpaceX Starlink (CelesTrak SupGP)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sat">Satellite</label>
+        <input id="sat" list="satlist" value="LUMELITE-4" autocomplete="off" spellcheck="false">
+        <datalist id="satlist"></datalist>
+      </div>
+      <div class="field">
+        <label for="dur">Duration</label>
+        <select id="dur">
+          <option value="60">1 min</option>
+          <option value="120" selected>2 min</option>
+          <option value="300">5 min</option>
+          <option value="600">10 min</option>
+        </select>
+      </div>
+      <button class="primary" id="track">Track</button>
+      <div class="field">
+        <label>Playback</label>
+        <div class="seg" id="speeds">
+          <button data-s="1" class="on">1×</button><button data-s="5">5×</button><button data-s="20">20×</button>
+        </div>
+      </div>
+      <button id="play" disabled>Pause</button>
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Pass time">
+        <span class="mono" id="clock">T+0.0 s</span>
+      </div>
+      <button id="csv" disabled>CSV</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Elevation</div><div class="v" id="t-el">–</div><div class="s" id="t-az">az –</div></div>
+    <div class="tile"><div class="k">Range</div><div class="v" id="t-rng">–</div><div class="s" id="t-rr">range rate –</div></div>
+    <div class="tile"><div class="k"><i class="sw x"></i>X angle (node 1)</div><div class="v" id="t-x">–</div><div class="s" id="t-xc">– counts</div></div>
+    <div class="tile"><div class="k"><i class="sw y"></i>Y angle (node 2)</div><div class="v" id="t-y">–</div><div class="s" id="t-yc">– counts</div></div>
+    <div class="tile"><div class="k"><i class="sw x"></i>X speed</div><div class="v" id="t-xr">–</div><div class="s" id="t-xrp">peak –</div></div>
+    <div class="tile"><div class="k"><i class="sw y"></i>Y speed</div><div class="v" id="t-yr">–</div><div class="s" id="t-yrp">peak –</div></div>
+  </div>
+
+  <div class="grid3">
+    <div class="panel">
+      <div class="head"><h2>Gimbal</h2><span class="note">drag to rotate</span></div>
+      <canvas class="view" id="gimbal"></canvas>
+      <div class="hint">X shaft runs east–west and tilts the dish north/south. Y shaft rides on the X frame and tilts it east/west (same frame as <span class="mono">trajectory.py</span>).</div>
+    </div>
+    <div class="panel">
+      <div class="head"><h2>Sky view</h2><span class="note">centre = zenith</span></div>
+      <svg id="sky" viewBox="0 0 320 320" role="img" aria-label="Polar sky plot of the satellite path"></svg>
+    </div>
+    <div class="panel">
+      <div class="head"><h2>Ground track</h2><span class="note" id="mapnote">station ★</span></div>
+      <canvas class="view" id="map"></canvas>
+      <div class="hint">Shaded ring = area that sees the satellite above 10° elevation right now.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw x"></i>X axis – node 1, eRob110H100I</span>
+    <span><i class="sw y"></i>Y axis – node 2, eRob90I-100</span>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="head"><h2>Motor angle (deg)</h2><span class="note" id="n-ang"></span></div><div class="chartbox"><canvas id="c-ang"></canvas></div></div>
+    <div class="panel"><div class="head"><h2>Motor speed (deg/s)</h2><span class="note" id="n-rate"></span></div><div class="chartbox"><canvas id="c-rate"></canvas></div></div>
+    <div class="panel"><div class="head"><h2>Motor acceleration (deg/s²)</h2><span class="note" id="n-acc"></span></div><div class="chartbox"><canvas id="c-acc"></canvas></div></div>
+    <div class="panel"><div class="head"><h2>Satellite elevation (deg)</h2><span class="note" id="n-el"></span></div><div class="chartbox"><canvas id="c-el"></canvas></div></div>
+  </div>
+
+  <div class="panel can">
+    <div class="head"><h2>CAN preview at this instant</h2><span class="note">not sent – just what the frames would be</span></div>
+    <pre id="can"><span class="c">Press Track.</span></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  const COUNTS = 524288;
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  let sim = null, tt = 0, speed = 1, playing = false, lastFrame = 0;
+  let charts = [], land = null, yaw = -0.6, pitch = 0.45;
+
+  // ---------------------------------------------------------- helpers
+  const fmt = (v, d = 2) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(d);
+  const cnt = deg => Math.round(deg / 360 * COUNTS);
+  const hex32 = v => (v >>> 0).toString(16).toUpperCase().padStart(8, "0");
+  const D2R = Math.PI / 180;
+
+  function at(key, t) {
+    const a = sim[key], f = t * sim.rate_hz, i = Math.min(Math.floor(f), a.length - 2), w = f - i;
+    return a[i] + (a[i + 1] - a[i]) * w;
+  }
+  function pointing(x, y) {            // ENU unit vector, inverse of trajectory._az_el_to_xy
+    x *= D2R; y *= D2R;
+    return [Math.sin(y), -Math.sin(x) * Math.cos(y), Math.cos(x) * Math.cos(y)];
+  }
+  function sizeCanvas(c) {
+    const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (c.width !== Math.round(r.width * dpr) || c.height !== Math.round(r.height * dpr)) {
+      c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+    }
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return [ctx, r.width, r.height];
+  }
+  function showMsg(text, kind) { const m = $("msg"); m.className = "msg " + (text ? kind : ""); m.textContent = text || ""; }
+
+  // ---------------------------------------------------------- gimbal 3D
+  function drawGimbal() {
+    const [ctx, W, H] = sizeCanvas($("gimbal"));
+    ctx.clearRect(0, 0, W, H);
+    const s = Math.min(W, H) / 4.6, cx = W / 2, cy = H * 0.56;
+    const cyaw = Math.cos(yaw), syaw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const P = v => {
+      const x1 = v[0] * cyaw - v[1] * syaw, d1 = v[0] * syaw + v[1] * cyaw;
+      return [cx + x1 * s, cy - (v[2] * cp - d1 * sp) * s];
+    };
+    const line = (a, b, col, w, dash) => {
+      const p = P(a), q = P(b);
+      ctx.beginPath(); ctx.setLineDash(dash || []); ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.setLineDash([]);
+    };
+    const dot = (v, col, r, ring) => {
+      const p = P(v); ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI);
+      ctx.fillStyle = col; ctx.fill();
+      if (ring) { ctx.lineWidth = 2; ctx.strokeStyle = css("--surface"); ctx.stroke(); }
+    };
+    const text = (v, t, col) => { const p = P(v); ctx.fillStyle = col; ctx.fillText(t, p[0], p[1]); };
+    const grid = css("--grid"), muted = css("--muted"), text2 = css("--text-2");
+    const X = css("--x"), Y = css("--y"), ink = css("--text");
+    ctx.font = "12px IBM Plex Sans, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    // ground + compass
+    const g = -1.1;
+    for (let i = -1.5; i <= 1.51; i += 0.5) { line([i, -1.5, g], [i, 1.5, g], grid, 1); line([-1.5, i, g], [1.5, i, g], grid, 1); }
+    text([0, 1.8, g], "N", text2); text([0, -1.8, g], "S", text2); text([1.8, 0, g], "E", text2); text([-1.8, 0, g], "W", text2);
+    line([0, 0, g], [0, 0, -0.15], muted, 3);                         // pedestal
+
+    const x = sim ? at("x", tt) : 0, y = sim ? at("y", tt) : 0;
+    const p = pointing(x, y);
+    const yAxis = [0, Math.cos(x * D2R), Math.sin(x * D2R)];          // Y shaft = N rotated by X
+    const u2 = [p[1] * yAxis[2] - p[2] * yAxis[1], p[2] * yAxis[0] - p[0] * yAxis[2], p[0] * yAxis[1] - p[1] * yAxis[0]];
+
+    // satellite trail on a dome
+    if (sim) {
+      const R = 1.9, n = sim.t.length, cur = Math.floor(tt * sim.rate_hz);
+      ctx.lineWidth = 2;
+      for (const [from, to, col, dash] of [[0, cur, ink, []], [cur, n - 1, muted, [3, 4]]]) {
+        ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = col;
+        for (let i = from; i <= to; i += 2) {
+          const q = P(pointing(sim.x[i], sim.y[i]).map(c => c * R));
+          i === from ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+
+    // X frame (rotates about E) and shaft
+    const fr = 0.85, c = [[-fr, -fr], [fr, -fr], [fr, fr], [-fr, fr], [-fr, -fr]].map(([a, b]) => [a, b * yAxis[1], b * yAxis[2]]);
+    for (let i = 0; i < 4; i++) line(c[i], c[i + 1], X, 1.5);
+    line([-1.15, 0, 0], [1.15, 0, 0], X, 4);
+    dot([1.15, 0, 0], X, 8, true); text([1.15, 0, -0.3], "X", X);
+    // Y shaft
+    line(yAxis.map(v => -v * 0.85), yAxis.map(v => v * 0.85), Y, 4);
+    dot(yAxis.map(v => v * 0.85), Y, 7, true); text(yAxis.map(v => v * 1.08), "Y", Y);
+
+    // dish: circle in the plane normal to boresight
+    ctx.beginPath();
+    for (let k = 0; k <= 36; k++) {
+      const a = k / 36 * 2 * Math.PI, r = 0.62;
+      const v = [0, 1, 2].map(j => p[j] * 0.12 + r * (Math.cos(a) * yAxis[j] + Math.sin(a) * u2[j]));
+      const q = P(v); k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]);
+    }
+    ctx.fillStyle = css("--surface-2"); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.stroke();
+    line([0, 0, 0], p.map(v => v * 0.12), ink, 2);
+
+    // boresight to satellite
+    line(p.map(v => v * 0.2), p.map(v => v * 1.9), ink, 1, [4, 4]);
+    if (sim) dot(p.map(v => v * 1.9), ink, 5, true);
+  }
+
+  // ---------------------------------------------------------- sky view
+  function drawSky() {
+    const svg = $("sky"), C = 160, R = 140;
+    const rr = el => (90 - el) / 90 * R;
+    const xy = (az, el) => [C + rr(el) * Math.sin(az * D2R), C - rr(el) * Math.cos(az * D2R)];
+    let h = "";
+    for (const el of [0, 30, 60]) h += `<circle cx="${C}" cy="${C}" r="${rr(el)}" fill="none" stroke="var(--grid)"/>`;
+    h += `<line x1="${C - R}" y1="${C}" x2="${C + R}" y2="${C}" stroke="var(--grid)"/><line x1="${C}" y1="${C - R}" x2="${C}" y2="${C + R}" stroke="var(--grid)"/>`;
+    for (const [t, x, y] of [["N", C, C - R - 10], ["S", C, C + R + 11], ["E", C + R + 10, C], ["W", C - R - 10, C]])
+      h += `<text x="${x}" y="${y}" fill="var(--text-2)" font-size="12" text-anchor="middle" dominant-baseline="middle">${t}</text>`;
+    for (const el of [30, 60]) h += `<text x="${C + 3}" y="${C - rr(el) - 4}" fill="var(--muted)" font-size="10">${el}°</text>`;
+    if (sim) {
+      const n = sim.t.length, cur = Math.floor(tt * sim.rate_hz);
+      const pts = (a, b) => { let s = ""; for (let i = a; i <= b; i += 2) { const [x, y] = xy(sim.az[i], sim.el[i]); s += `${x.toFixed(1)},${y.toFixed(1)} `; } return s; };
+      h += `<polyline points="${pts(cur, n - 1)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 4"/>`;
+      h += `<polyline points="${pts(0, cur)}" fill="none" stroke="var(--track)" stroke-width="2"/>`;
+      const [x, y] = xy(at("az", tt), at("el", tt));
+      h += `<circle cx="${x}" cy="${y}" r="6" fill="var(--track)" stroke="var(--surface)" stroke-width="2"/>`;
+    }
+    svg.innerHTML = h;
+  }
+
+  // ---------------------------------------------------------- ground track
+  async function loadLand() {
+    try {
+      const topo = await (await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json")).json();
+      land = topojson.feature(topo, topo.objects.land);
+    } catch (e) { land = null; }
+    drawMap();
+  }
+  function drawMap() {
+    const [ctx, W, H] = sizeCanvas($("map"));
+    ctx.clearRect(0, 0, W, H);
+    // window centred on the station, 80° wide, keep aspect
+    const lon0 = sim ? sim.site.lon : 103.82, lat0 = sim ? sim.site.lat : 1.35;
+    const spanLon = 80, k = W / spanLon, spanLat = H / k;
+    const wrap = d => ((d + 540) % 360) - 180;
+    const P = (lat, lon) => [W / 2 + wrap(lon - lon0) * k, H / 2 - (lat - lat0) * k];
+
+    ctx.fillStyle = css("--surface-2"); ctx.fillRect(0, 0, W, H);
+    // graticule
+    ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1; ctx.fillStyle = css("--muted"); ctx.font = "10px IBM Plex Mono, monospace";
+    for (let g = -180; g <= 180; g += 10) {
+      const [x] = P(lat0, g); if (x < 0 || x > W) continue;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.fillText(g + "°", x + 2, H - 4);
+    }
+    for (let g = -80; g <= 80; g += 10) {
+      const [, y] = P(g, lon0); if (y < 0 || y > H) continue;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.fillText(g + "°", 2, y - 2);
+    }
+    // land
+    if (land) {
+      ctx.fillStyle = css("--land"); ctx.beginPath();
+      for (const f of land.features) {
+        const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+        for (const poly of polys) for (const ring of poly) {
+          let prev = null;
+          ring.forEach(([lon, lat], i) => {
+            const [x, y] = P(lat, lon);
+            if (i === 0 || (prev && Math.abs(x - prev) > W / 2)) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            prev = x;
+          });
+        }
+      }
+      ctx.fill("evenodd");
+    }
+    if (!sim) return;
+
+    // visibility footprint (10° min elevation) around the current sub-point
+    const Re = 6371, h = at("height_km", tt), e = 10 * D2R;
+    const lam = Math.acos(Re / (Re + h) * Math.cos(e)) - e;
+    const sl = at("lat", tt) * D2R, so = at("lon", tt) * D2R;
+    ctx.beginPath();
+    for (let i = 0; i <= 72; i++) {
+      const b = i / 72 * 2 * Math.PI;
+      const la = Math.asin(Math.sin(sl) * Math.cos(lam) + Math.cos(sl) * Math.sin(lam) * Math.cos(b));
+      const lo = so + Math.atan2(Math.sin(b) * Math.sin(lam) * Math.cos(sl), Math.cos(lam) - Math.sin(sl) * Math.sin(la));
+      const [x, y] = P(la / D2R, lo / D2R); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.fillStyle = css("--x"); ctx.globalAlpha = 0.08; ctx.fill(); ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = css("--x"); ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+
+    // track: done solid, to-go dashed
+    const n = sim.t.length, cur = Math.floor(tt * sim.rate_hz);
+    for (const [a, b, col, dash] of [[cur, n - 1, css("--muted"), [3, 4]], [0, cur, css("--track"), []]]) {
+      ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = col; ctx.lineWidth = 2;
+      for (let i = a; i <= b; i += 2) { const [x, y] = P(sim.lat[i], sim.lon[i]); i === a ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    // station + satellite
+    const [sx, sy] = P(sim.site.lat, sim.site.lon);
+    ctx.fillStyle = css("--y"); ctx.font = "16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("★", sx, sy); ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    const [px, py] = P(at("lat", tt), at("lon", tt));
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, 2 * Math.PI); ctx.fillStyle = css("--track"); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = css("--surface"); ctx.stroke();
+  }
+
+  // ---------------------------------------------------------- charts
+  const playhead = {
+    id: "playhead",
+    afterDatasetsDraw(c) {
+      if (!sim) return;
+      const { ctx, chartArea: a, scales } = c, x = scales.x.getPixelForValue(tt);
+      ctx.save();
+      ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke();
+      c.data.datasets.forEach(ds => {
+        const y = scales.y.getPixelForValue(at(ds.key, tt));
+        ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 2 * Math.PI);
+        ctx.fillStyle = ds.borderColor; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = css("--surface"); ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+  function makeChart(id, series, unit) {
+    const grid = css("--grid"), tick = css("--text-2");
+    return new Chart($(id), {
+      type: "line",
+      data: { datasets: series.map(([key, label, color]) => ({
+        key, label, borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 0, tension: 0,
+        data: sim.t.map((t, i) => ({ x: t, y: sim[key][i] }))
+      })) },
+      options: {
+        animation: false, parsing: false, normalized: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: items => `T+${items[0].parsed.x.toFixed(1)} s`,
+            label: it => ` ${it.dataset.label}: ${it.parsed.y.toFixed(3)} ${unit}`
+          } },
+          decimation: { enabled: true, algorithm: "lttb", samples: 400 }
+        },
+        scales: {
+          x: { type: "linear", min: 0, max: sim.duration_s, grid: { color: grid }, ticks: { color: tick, callback: v => v + " s" }, border: { color: grid } },
+          y: { grid: { color: grid }, ticks: { color: tick }, border: { color: grid } }
+        }
+      },
+      plugins: [playhead]
+    });
+  }
+  function buildCharts() {
+    charts.forEach(c => c.destroy()); charts = [];
+    if (!sim) return;
+    const X = css("--x"), Y = css("--y");
+    charts.push(makeChart("c-ang", [["x", "X", X], ["y", "Y", Y]], "deg"));
+    charts.push(makeChart("c-rate", [["x_rate", "X", X], ["y_rate", "Y", Y]], "deg/s"));
+    charts.push(makeChart("c-acc", [["x_acc", "X", X], ["y_acc", "Y", Y]], "deg/s²"));
+    charts.push(makeChart("c-el", [["el", "Elevation", css("--text")]], "deg"));
+  }
+
+  // ---------------------------------------------------------- readouts
+  function peak(a) { return a.reduce((m, v) => Math.max(m, Math.abs(v)), 0); }
+  function render() {
+    drawGimbal(); drawSky(); drawMap();
+    charts.forEach(c => c.draw());
+    if (!sim) return;
+    const L = sim.limits;
+    const x = at("x", tt), y = at("y", tt), xr = at("x_rate", tt), yr = at("y_rate", tt);
+    $("clock").textContent = `T+${tt.toFixed(1)} s`;
+    $("scrub").value = Math.round(tt / sim.duration_s * 1000);
+    $("t-el").textContent = at("el", tt).toFixed(2) + "°";
+    $("t-az").textContent = "az " + at("az", tt).toFixed(1) + "°";
+    $("t-rng").textContent = at("range_km", tt).toFixed(0) + " km";
+    $("t-rr").textContent = "range rate " + fmt(at("range_rate_km_s", tt), 3) + " km/s";
+    $("t-x").textContent = fmt(x, 3) + "°";
+    $("t-y").textContent = fmt(y, 3) + "°";
+    $("t-xc").textContent = cnt(x).toLocaleString() + " counts";
+    $("t-yc").textContent = cnt(y).toLocaleString() + " counts";
+    $("t-xr").textContent = fmt(xr, 3) + "°/s";
+    $("t-yr").textContent = fmt(yr, 3) + "°/s";
+    $("t-xrp").textContent = `peak ${peak(sim.x_rate).toFixed(3)} of ${L.x_speed} °/s`;
+    $("t-yrp").textContent = `peak ${peak(sim.y_rate).toFixed(3)} of ${L.y_speed} °/s`;
+
+    const now = new Date(Date.parse(sim.start_utc) + tt * 1000).toISOString().slice(11, 22);
+    const line = (node, deg, rate) =>
+      `64${node}#0086${hex32(cnt(deg))}   <span class="c">absolute target ${cnt(deg)} counts (${fmt(deg, 3)}°)</span>\n` +
+      `64${node}#008A${hex32(Math.abs(cnt(rate)))}   <span class="c">speed ${Math.abs(cnt(rate))} counts/s (${Math.abs(rate).toFixed(3)}°/s)</span>`;
+    $("can").innerHTML = `<span class="c">${now} UTC</span>\n` + line(1, x, xr) + "\n" + line(2, y, yr) +
+      `\n<span class="c">Streaming 0x86 targets at 10 Hz is not bench-proven yet - the proven path is one relative move + 0x83.</span>`;
+  }
+
+  function frame(ts) {
+    if (playing && sim) {
+      tt = Math.min(tt + (ts - lastFrame) / 1000 * speed, sim.duration_s);
+      if (tt >= sim.duration_s) { playing = false; $("play").textContent = "Replay"; }
+    }
+    lastFrame = ts;
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------------------------------------------------------- actions
+  async function track() {
+    const name = $("sat").value.trim();
+    if (!name) return;
+    const btn = $("track");
+    btn.disabled = true; btn.textContent = "Fetching TLE…"; showMsg("");
+    try {
+      const q = new URLSearchParams({ name, source: $("source").value, duration: $("dur").value });
+      const r = await fetch("/api/simulate?" + q);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || r.statusText);
+      sim = d; tt = 0; playing = true;
+      buildCharts();
+      $("play").disabled = $("scrub").disabled = $("csv").disabled = false;
+      $("play").textContent = "Pause";
+      $("meta").innerHTML =
+        `<span><b>${d.satellite}</b> · NORAD ${d.norad_id}</span>` +
+        `<span>source <b>${d.source}</b></span>` +
+        `<span>TLE epoch <b>${d.tle_epoch.slice(0, 19).replace("T", " ")} UTC</b> (${d.tle_age_h} h old)</span>` +
+        `<span>start <b>${d.start_utc.slice(0, 19).replace("T", " ")} UTC</b></span>` +
+        `<span>virtual station <b>${d.site.lat.toFixed(4)}°, ${d.site.lon.toFixed(4)}°</b></span>` +
+        `<span>altitude <b>${d.height_km[0].toFixed(0)} km</b></span>`;
+      $("mapnote").textContent = `station ★ ${d.site.lat.toFixed(2)}°, ${d.site.lon.toFixed(2)}°`;
+      $("n-ang").textContent = `limits ${d.limits.x_min}…${d.limits.x_max}°`;
+      $("n-rate").textContent = `limit ±${d.limits.x_speed}°/s`;
+      $("n-acc").textContent = `peak X ${peak(d.x_acc).toFixed(3)}, Y ${peak(d.y_acc).toFixed(3)}`;
+      $("n-el").textContent = `${d.el[0].toFixed(1)}° → ${d.el[d.el.length - 1].toFixed(1)}°`;
+      if (d.violations.length) showMsg("⚠ " + d.violations.join("; "), "warn");
+    } catch (e) {
+      showMsg("Could not simulate: " + e.message, "err");
+    } finally {
+      btn.disabled = false; btn.textContent = "Track";
+    }
+  }
+
+  function downloadCsv() {
+    const keys = ["t", "az", "el", "range_km", "range_rate_km_s", "x", "y", "x_rate", "y_rate", "x_acc", "y_acc", "lat", "lon", "height_km"];
+    const rows = [keys.concat(["x_counts", "y_counts"]).join(",")];
+    sim.t.forEach((_, i) => rows.push(keys.map(k => sim[k][i]).concat([cnt(sim.x[i]), cnt(sim.y[i])]).join(",")));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv" }));
+    a.download = `${sim.satellite}_${sim.start_utc.slice(0, 19).replace(/:/g, "")}.csv`;
+    a.click();
+  }
+
+  let searchTimer = null;
+  $("sat").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    const q = $("sat").value.trim();
+    if (q.length < 3) return;
+    searchTimer = setTimeout(async () => {
+      try {
+        const names = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
+        if (Array.isArray(names)) $("satlist").innerHTML = names.map(n => `<option value="${n}">`).join("");
+      } catch (e) { /* search is optional */ }
+    }, 450);
+  });
+  $("sat").addEventListener("keydown", e => { if (e.key === "Enter") track(); });
+  $("track").addEventListener("click", track);
+  $("play").addEventListener("click", () => {
+    if (!sim) return;
+    if (tt >= sim.duration_s) tt = 0;
+    playing = !playing;
+    $("play").textContent = playing ? "Pause" : "Play";
+  });
+  $("speeds").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    speed = +b.dataset.s;
+    [...$("speeds").children].forEach(c => c.classList.toggle("on", c === b));
+  });
+  $("scrub").addEventListener("input", e => {
+    if (!sim) return;
+    tt = e.target.value / 1000 * sim.duration_s;
+    playing = false; $("play").textContent = "Play";
+  });
+  $("csv").addEventListener("click", downloadCsv);
+
+  // drag to rotate the gimbal view
+  let drag = null;
+  $("gimbal").addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, yaw, pitch]; e.target.setPointerCapture(e.pointerId); });
+  $("gimbal").addEventListener("pointermove", e => {
+    if (!drag) return;
+    yaw = drag[2] + (e.clientX - drag[0]) * 0.01;
+    pitch = Math.max(0.05, Math.min(1.4, drag[3] + (e.clientY - drag[1]) * 0.01));
+  });
+  $("gimbal").addEventListener("pointerup", () => { drag = null; });
+
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", buildCharts);
+  loadLand();
+  const qs = new URLSearchParams(location.search);       // e.g. /?sat=STARLINK-1008&track=1
+  if (qs.get("sat")) $("sat").value = qs.get("sat");
+  if (qs.get("track")) track();
+  requestAnimationFrame(ts => { lastFrame = ts; frame(ts); });
+})();
+</script>
+</body>
+</html>

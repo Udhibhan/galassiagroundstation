@@ -1,0 +1,261 @@
+{
+  "simulated": false,
+  "label": "HARDWARE",
+  "started_utc": "2026-11-14T12:18:25+00:00",
+  "command": "python3 current_char.py --pi 172.20.10.2 --plan fast --phases 3e,4a,4c --allow-diag-reach --prev-run data/current_char/20261114_192721 --prev-run data/current_char/20261114_194244",
+  "prev_run": [
+    "/home/udaiyan/Downloads/GS Final/GS Final/gs_v3/data/current_char/20261114_192721",
+    "/home/udaiyan/Downloads/GS Final/GS Final/gs_v3/data/current_char/20261114_194244"
+  ],
+  "args": {
+    "plan": "fast",
+    "phases_arg": "3e,4a,4c",
+    "pi": "172.20.10.2",
+    "sim": false,
+    "time_scale": 1.0,
+    "clamp_meter": false,
+    "allow_stop_test": false,
+    "allow_accel_test": false,
+    "rates": {
+      "moving_hz": 2.0,
+      "hold_hz": 1.0,
+      "fast_hz": 4.0,
+      "thermal_hold_hz": 0.1
+    },
+    "quiet_s": 1.0,
+    "quiet_track_s": 0.3,
+    "min_gap_s": 0.03,
+    "track_speed": 1.0,
+    "sim_events": []
+  },
+  "abort_limits": {
+    "temp_max_c": 60.0,
+    "temp_rise_c": 15.0,
+    "min_bus_v": 44.0,
+    "dropout": "state 0 still there after a 1 s re-read",
+    "relay_link_lost": true,
+    "ctrl_c": true
+  },
+  "software_current_stops_A": {
+    "x": 15.0,
+    "y": 11.0
+  },
+  "rated_continuous_A": {
+    "x": 25.0,
+    "y": 18.0
+  },
+  "rated_peak": {
+    "x": "30 A for 4 s",
+    "y": "27 A for 4 s"
+  },
+  "cad": {
+    "margin_deg": 3.0,
+    "rule": "linear interpolation, floored to the lower neighbouring table value, minus margin",
+    "max_abs_y_at_abs_x_80": 69.47,
+    "max_abs_x_for_abs_y_80": 70.0
+  },
+  "grid": {
+    "step_deg": 20,
+    "range_deg": [
+      -80,
+      80
+    ],
+    "settle_s": 2.0,
+    "sample_s": 5.0,
+    "order": "serpentine: X columns, Y alternating direction",
+    "speed_deg_s": 1.0
+  },
+  "sweeps": {
+    "3a_y": [
+      -60,
+      -30,
+      0,
+      30,
+      60
+    ],
+    "3b_x": [
+      -60,
+      -30,
+      0,
+      30,
+      60
+    ],
+    "speed_deg_s": 1.0,
+    "3c_speeds": [
+      0.5,
+      1.5
+    ],
+    "3d": [
+      "(+60,+60)<->(-60,-60)",
+      "(+60,-60)<->(-60,+60)"
+    ]
+  },
+  "thermal_hold_s": 30,
+  "speed_deg_s": 1.5,
+  "fast_plan": {
+    "sweeps": "X at Y=0 and Y at X=0: 0 -> +80 -> -80 -> 0",
+    "diagonal": "(+50,+50) -> (-50,-50) -> HOME",
+    "worst_pose": "(+/-60, +/-60) on the side each sweep lifted most",
+    "baseline_s": 10,
+    "breakaway_hold_s": 5,
+    "hold_s": 30,
+    "holding_map": "not run"
+  },
+  "accel_reg": {
+    "proven": "0x0419",
+    "phase6": "0x0B61"
+  },
+  "phases_selected": [
+    "3e",
+    "4a",
+    "4c"
+  ],
+  "phases_not_run": {},
+  "estimate_s": {
+    "soak": 131.3649825230378,
+    "3e": 655.5299650460756,
+    "4a": 73.12996504607565,
+    "4c": 36.615824594852256,
+    "end": 43.282491261518885
+  },
+  "home_counts": {
+    "x": 100451,
+    "y": 94947
+  },
+  "start_pose_deg": [
+    57.490081787109375,
+    57.48870849609375
+  ],
+  "start_status": "Link: Pi relay 172.20.10.2:7070   bus 47.426 V   X +57.49 deg (state holding, 33 C)   Y +57.49 deg (state holding, 34 C)   HOME counts X 100451 Y 94947",
+  "operator_notes": {
+    "counterweight": "",
+    "cable_routing": "",
+    "wind_weather": "",
+    "attached_to_dish": "",
+    "other": ""
+  },
+  "config": {
+    "AXES": {
+      "x": {
+        "name": "x",
+        "node_id": 1,
+        "model": "eRob110H100I",
+        "sign": 1,
+        "min_deg": -80.0,
+        "max_deg": 80.0,
+        "slew_speed_deg_s": 5.0,
+        "track_speed_deg_s": 2.0,
+        "accel_deg_s2": 2.0,
+        "current_limit_a": 15.0
+      },
+      "y": {
+        "name": "y",
+        "node_id": 2,
+        "model": "eRob90I-100",
+        "sign": 1,
+        "min_deg": -80.0,
+        "max_deg": 80.0,
+        "slew_speed_deg_s": 5.0,
+        "track_speed_deg_s": 2.0,
+        "accel_deg_s2": 2.0,
+        "current_limit_a": 11.0
+      }
+    },
+    "HOME_COUNTS": {
+      "x": 100451,
+      "y": 94947
+    },
+    "COUNTS_PER_REV": 524288,
+    "MANUAL_ACCEL_COUNTS": "0x0419",
+    "MANUAL_SPEEDS_DEG_S": [
+      0.5,
+      1.0,
+      1.5
+    ],
+    "MIN_MOVE_DEG": 0.5,
+    "SETUP_TO_ENABLE_S": 1.0,
+    "POLL_PERIOD_S": 1.0,
+    "SLOW_POLL_PERIOD_S": 10.0,
+    "TRACK_STEP_PERIOD_S": 0.5,
+    "GOTO_DONE_DEG": 0.02,
+    "PAGE_DEADMAN_S": 2.0,
+    "CAN_BUS": {
+      "interface": "remote",
+      "bitrate": 1000000,
+      "gap_s": 0.02,
+      "reply_timeout_s": 0.4
+    },
+    "RELAY_PORT": 7070,
+    "RELAY_WATCHDOG_S": 2.0,
+    "BORESIGHT_OFFSET": {
+      "deg": 22.0,
+      "toward": "+X",
+      "confirmed": true
+    }
+  },
+  "git_head": null,
+  "files": [
+    "plan.json",
+    "samples.csv",
+    "points.csv",
+    "events.jsonl",
+    "summary.json"
+  ],
+  "columns": {
+    "samples.csv": [
+      "t_utc",
+      "t_rel_s",
+      "phase",
+      "step_id",
+      "moving_axes",
+      "x_cmd_deg",
+      "y_cmd_deg",
+      "x_deg",
+      "y_deg",
+      "x_state",
+      "y_state",
+      "ix_a",
+      "iy_a",
+      "itotal_a",
+      "x_dir",
+      "y_dir",
+      "speed_deg_s",
+      "accel_reg",
+      "bus_v",
+      "temp_x_c",
+      "temp_y_c",
+      "note"
+    ],
+    "points.csv": [
+      "x_deg",
+      "y_deg",
+      "approach_x",
+      "approach_y",
+      "ix_mean",
+      "ix_max",
+      "ix_min",
+      "ix_std",
+      "ix_n",
+      "iy_mean",
+      "iy_max",
+      "iy_min",
+      "iy_std",
+      "iy_n",
+      "itotal_mean",
+      "itotal_max",
+      "itotal_min",
+      "itotal_std",
+      "itotal_n",
+      "skipped_reason",
+      "x_meas_deg",
+      "y_meas_deg"
+    ]
+  },
+  "column_notes": {
+    "ix_a/iy_a": "register 0x0008, motor current, signed A",
+    "itotal_a": "|ix|+|iy|",
+    "x_dir/y_dir": "+1/-1 = direction the axis is moving, 0 = not moving",
+    "approach_x/approach_y": "direction of the last move of that axis before the cell",
+    "x_cmd_deg/y_cmd_deg": "goto target (track: target at that time)"
+  }
+}

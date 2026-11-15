@@ -1,0 +1,293 @@
+{
+  "run_dir": "20261114_192721",
+  "simulated": false,
+  "label": "HARDWARE",
+  "notes": "register 0x0008 is MOTOR current, not 48 V supply current. 'Total' = |I_X| + |I_Y|. Supply current is only known from the clamp-meter readings.",
+  "rated_A": {
+    "x": 25.0,
+    "y": 18.0
+  },
+  "soft_stop_A": {
+    "x": 15.0,
+    "y": 11.0
+  },
+  "n_samples": 834,
+  "aborted": "X motor dropped out (error 0x3F1)",
+  "duration_s": 550.5,
+  "t_first_utc": "2026-11-14T11:27:32.743+00:00",
+  "t_last_utc": "2026-11-14T11:36:43.273+00:00",
+  "phases_logged": [
+    "soak",
+    "1",
+    "3a",
+    "3b"
+  ],
+  "peak": {
+    "x": {
+      "t_utc": "2026-11-14T11:30:47.828+00:00",
+      "t_rel_s": 205.9,
+      "phase": "3a",
+      "step_id": "3a-y+0-up",
+      "x_deg": 79.59,
+      "y_deg": -0.0,
+      "ix_a": -7.66,
+      "iy_a": -0.035,
+      "itotal_a": 7.695,
+      "x_dir": "-",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 30.6
+    },
+    "y": {
+      "t_utc": "2026-11-14T11:33:23.880+00:00",
+      "t_rel_s": 362.0,
+      "phase": "3a",
+      "step_id": "3a-y+0-down",
+      "x_deg": -9.48,
+      "y_deg": -0.0,
+      "ix_a": 2.55,
+      "iy_a": -4.356,
+      "itotal_a": 6.906,
+      "x_dir": "+",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 24.2
+    },
+    "total": {
+      "t_utc": "2026-11-14T11:32:58.601+00:00",
+      "t_rel_s": 336.7,
+      "phase": "3a",
+      "step_id": "3a-y+0-down",
+      "x_deg": -47.38,
+      "y_deg": -0.0,
+      "ix_a": 5.978,
+      "iy_a": -3.502,
+      "itotal_a": 9.48,
+      "x_dir": "+",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 23.9
+    }
+  },
+  "grid": {
+    "n_cells": 0,
+    "n_measured": 0,
+    "n_skipped": 0,
+    "skipped_reasons": []
+  },
+  "breakaway": {},
+  "reversal": {},
+  "cases": {
+    "peak_holding": {
+      "t_utc": "2026-11-14T11:29:39.857+00:00",
+      "t_rel_s": 138.0,
+      "phase": "soak",
+      "step_id": "soak-5",
+      "x_deg": -0.01,
+      "y_deg": -0.0,
+      "ix_a": -0.393,
+      "iy_a": -2.548,
+      "itotal_a": 2.941,
+      "x_dir": "holding",
+      "y_dir": "holding",
+      "x_motion": "holding",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 14.2
+    },
+    "peak_lifting_x": {
+      "t_utc": "2026-11-14T11:30:47.828+00:00",
+      "t_rel_s": 205.9,
+      "phase": "3a",
+      "step_id": "3a-y+0-up",
+      "x_deg": 79.59,
+      "y_deg": -0.0,
+      "ix_a": -7.66,
+      "iy_a": -0.035,
+      "itotal_a": 7.695,
+      "x_dir": "-",
+      "y_dir": "holding",
+      "x_motion": "lifting",
+      "y_motion": "holding",
+      "speed_deg_s": 1.5,
+      "pct_rating": 30.6
+    },
+    "peak_lifting_y": {
+      "t_utc": "2026-11-14T11:28:38.959+00:00",
+      "t_rel_s": 77.1,
+      "phase": "soak",
+      "step_id": "soak-3",
+      "x_deg": -0.0,
+      "y_deg": 8.76,
+      "ix_a": 0.087,
+      "iy_a": -4.127,
+      "itotal_a": 4.214,
+      "x_dir": "holding",
+      "y_dir": "-",
+      "x_motion": "holding",
+      "y_motion": "lifting",
+      "speed_deg_s": 0.5,
+      "pct_rating": 22.9
+    }
+  },
+  "clamp_meter": [],
+  "current_stop_trips": [],
+  "dropouts": [
+    {
+      "t_utc": "2026-11-14T11:34:10.469+00:00",
+      "t_rel_s": 408.58,
+      "type": "dropout",
+      "phase": "3b",
+      "axis": "x",
+      "err": "0x3F1",
+      "msg": "X motor dropped out (state 0 again after 1 s, error 0x3F1)"
+    }
+  ],
+  "sweeps": [
+    "3a-y+0",
+    "3b-x+0"
+  ],
+  "n_sweeps": 2,
+  "sample_rate": {
+    "moving_hz_median": 1.8,
+    "holding_hz_median": 0.96
+  },
+  "sample_rate_cfg": {
+    "moving_hz": 2.0,
+    "hold_hz": 1.0,
+    "fast_hz": 4.0,
+    "thermal_hold_hz": 0.1
+  },
+  "temp_x_c": {
+    "first": 33.0,
+    "max": 34.0,
+    "last": 32.0
+  },
+  "temp_y_c": {
+    "first": 34.0,
+    "max": 35.0,
+    "last": 33.0
+  },
+  "bus_v": {
+    "min": 46.83,
+    "max": 47.62
+  },
+  "vs_software_stop": [
+    {
+      "axis": "x",
+      "peak_A": 7.66,
+      "soft_stop_A": 15.0,
+      "pct_of_stop": 51.1,
+      "within_20pct": false
+    },
+    {
+      "axis": "y",
+      "peak_A": 4.356,
+      "soft_stop_A": 11.0,
+      "pct_of_stop": 39.6,
+      "within_20pct": false
+    }
+  ],
+  "fit": {
+    "x": {
+      "axis": "x",
+      "n": 391,
+      "phases": [
+        "3a",
+        "3b",
+        "3c"
+      ],
+      "r2": 0.9948,
+      "rms_resid_A": 0.275,
+      "model": "I = c0 + F*sign(motion) - G+*sin(a)[a>=0] - G-*sin(a)[a<0]",
+      "c0_A": [
+        0.044,
+        0.031
+      ],
+      "F_A": [
+        1.662,
+        0.014
+      ],
+      "G_pos_A": [
+        5.173,
+        0.051
+      ],
+      "G_neg_A": [
+        5.124,
+        0.051
+      ],
+      "per_line": [
+        {
+          "y_deg": -0.0,
+          "G_A": [
+            5.149,
+            0.021
+          ],
+          "F_A": [
+            1.662,
+            0.014
+          ],
+          "n": 391,
+          "r2": 0.9948
+        }
+      ]
+    },
+    "y": {
+      "axis": "y",
+      "n": 66,
+      "phases": [
+        "3a",
+        "3b",
+        "3c"
+      ],
+      "r2": 0.7974,
+      "rms_resid_A": 0.162,
+      "model": "I = c0 + F*sign(motion) - G+*sin(a)[a>=0] - G-*sin(a)[a<0]",
+      "c0_A": [
+        -0.744,
+        null
+      ],
+      "F_A": [
+        -0.744,
+        null
+      ],
+      "G_pos_A": [
+        1.294,
+        null
+      ],
+      "G_neg_A": [
+        0.0,
+        null
+      ],
+      "per_line": [
+        {
+          "x_deg": 0.0,
+          "G_A": [
+            1.294,
+            null
+          ],
+          "F_A": [
+            -0.744,
+            null
+          ],
+          "n": 66,
+          "r2": 0.7974
+        }
+      ]
+    },
+    "nov7_reference": {
+      "friction_A": [
+        1.65,
+        1.7
+      ],
+      "G_pos_A": 7.6,
+      "G_neg_A": 6.6
+    }
+  }
+}

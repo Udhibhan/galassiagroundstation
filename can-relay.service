@@ -1,0 +1,24 @@
+# systemd unit for can_relay.py on the Raspberry Pi (OPTIONAL - you can also run it by hand).
+# Install (edit User, paths and the laptop IP first):
+#   sudo cp can-relay.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now can-relay
+#   journalctl -u can-relay -f            # live log (WATCHDOG lines show here)
+[Unit]
+Description=Gimbal CAN relay (can0 <-> laptop, watchdog STOP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=groundstationrpi
+WorkingDirectory=/home/groundstationrpi/gs
+# bring can0 up at 1 Mbps first (needs root: the "+" prefix runs this line as root)
+ExecStartPre=+/bin/sh -c 'ip link set can0 down; ip link set can0 up type can bitrate 1000000 restart-ms 100'
+ExecStart=/usr/bin/python3 /home/groundstationrpi/gs/can_relay.py --allow LAPTOP_IP_HERE
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

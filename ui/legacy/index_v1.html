@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gimbal Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- Gimbal Console: live 3D view on top; tabs Manual / Sun / Satellite / Test / Demod. -->
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js","three/addons/":"/vendor/addons/"}}</script>
+<style>
+:root{
+  --paper:#E9EDF0; --panel:#FFFFFF; --ink:#13202A; --ink-2:#4A5966; --ink-3:#7D8B96; --rule:#CBD3DA;
+  --x:#2F5BD3; --y:#B5338A; --stop:#D92B1E; --ok:#1E8E4E; --okbg:#DDF3E5; --warn:#B7791F; --amber:#F2A900; --amberbg:#FFF2CC;
+  --sun:#E3A008; --nogo:#DCE2E7; --sky:#F6F9FB;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.4 var(--body);font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--x);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:18px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--rule);flex-wrap:wrap;position:sticky;top:0;z-index:5}
+.brand{font:700 22px/1 var(--cond);white-space:nowrap}
+.brand small{display:block;font:500 13px/1.2 var(--body);color:var(--ink-3)}
+.chips{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap;font-size:15px;color:var(--ink-2)}
+.chip{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.chip b{font-weight:600;color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ink-3)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--amber)} .dot.bad{background:var(--stop)}
+.sim{font:600 13px/1 var(--cond);background:#FFF3C4;color:#7A5300;padding:5px 8px;border-radius:5px}
+#stop{border:0;background:var(--stop);color:#fff;font:700 26px/1 var(--cond);letter-spacing:.05em;padding:14px 34px;border-radius:12px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+#stop:active{transform:translateY(1px);box-shadow:none}
+#stop small{display:block;font:500 12px/1 var(--body);letter-spacing:0;opacity:.9;margin-top:4px}
+
+.banner{display:none;padding:10px 20px;font-weight:600;color:#fff;background:var(--stop)}
+.banner.on{display:block}
+.banner.warn{background:var(--warn)}
+
+nav.tabs{display:flex;gap:4px;max-width:1180px;margin:14px auto 0;padding:0 16px}
+nav.tabs button{border:1px solid var(--rule);border-bottom:0;background:var(--paper);padding:10px 22px;border-radius:10px 10px 0 0;font:700 19px/1 var(--cond);color:var(--ink-2)}
+nav.tabs button[aria-selected=true]{background:var(--panel);color:var(--ink)}
+main{max-width:1180px;margin:0 auto;padding:0 16px 18px;display:grid;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:0 14px 14px 14px;padding:18px;display:grid;gap:16px}
+.panel[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:18px}
+.sub{border:1px solid var(--rule);border-radius:12px;padding:16px}
+h2{font:700 20px/1.1 var(--cond);margin:0 0 6px}
+h3{font:700 17px/1.1 var(--cond);margin:0 0 6px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--ink-2)}
+.small{font-size:14px}
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:10px;padding:11px 22px;font:700 20px/1 var(--cond)}
+.btn.go{background:var(--ok);border-color:var(--ok)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn.danger{background:transparent;color:var(--stop);border-color:var(--stop)}
+.btn.active{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 0 0 4px var(--okbg)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+
+.speed{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.speed .big{font:700 24px/1 var(--cond)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:var(--panel);padding:8px 14px;font:600 16px/1 var(--cond);border-left:1px solid var(--rule)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- WASD cross ---------- */
+.cross{display:grid;grid-template-columns:repeat(3,minmax(0,150px));grid-template-rows:repeat(3,auto);gap:12px;justify-content:center;margin:6px 0 4px}
+.key{border:2px solid var(--rule);background:var(--panel);border-radius:16px;box-shadow:0 4px 0 var(--rule);min-height:118px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;user-select:none;touch-action:manipulation;transition:background .12s,border-color .12s}
+.key b{font:700 46px/1 var(--cond)}
+.key .lbl{font:700 17px/1 var(--cond)}
+.key .st{font-size:13px;color:var(--ink-2);min-height:17px}
+.key.x b,.key.x .lbl{color:var(--x)} .key.y b,.key.y .lbl{color:var(--y)}
+.key:active{transform:translateY(2px);box-shadow:0 2px 0 var(--rule)}
+.key:disabled{opacity:.45;cursor:not-allowed}
+.key.busy{background:var(--amberbg);border-color:var(--amber);box-shadow:0 4px 0 var(--amber)}
+.key.go{background:var(--okbg);border-color:var(--ok);box-shadow:0 4px 0 var(--ok)}
+.key.go .st{color:var(--ok);font-weight:700}
+.key.flash{animation:flash 1.4s}
+@keyframes flash{0%,60%{background:#FBD5D2;border-color:var(--stop);box-shadow:0 4px 0 var(--stop)}100%{}}
+#kW{grid-column:2;grid-row:1} #kA{grid-column:1;grid-row:2} #kD{grid-column:3;grid-row:2} #kS{grid-column:2;grid-row:3}
+.hub{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;font-size:13px;color:var(--ink-3)}
+#home{min-width:120px;padding:14px 18px}
+.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:2px solid}
+
+/* ---------- axis lines ---------- */
+.axes{width:100%;border-collapse:collapse;font-size:15px;margin-top:14px}
+.axes th{font:600 13px/1.2 var(--body);color:var(--ink-3);text-align:right;padding:4px 8px;border-bottom:1px solid var(--rule)}
+.axes td{padding:8px 8px;text-align:right;border-bottom:1px solid var(--paper);white-space:nowrap}
+.axes th:first-child,.axes td:first-child{text-align:left}
+.axes td.ang{font:700 22px/1 var(--cond)}
+.axes .msg td{text-align:left;white-space:normal;font-size:14px;color:var(--ink-2);padding-top:0}
+.axes .msg td.error{color:var(--stop);font-weight:600} .axes .msg td.warn{color:var(--warn);font-weight:600}
+.tablewrap{overflow-x:auto}
+.st-moving{color:var(--ok);font-weight:700} .st-off{color:var(--stop);font-weight:700}
+
+/* ---------- Sun panel ---------- */
+.sunbig{font:700 34px/1 var(--cond)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;margin:8px 0 0}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;text-align:right;font-weight:600}
+.note{font-size:14px;color:var(--ink-2);background:var(--paper);border-radius:10px;padding:10px 12px;margin:10px 0 0}
+.note.warn{background:var(--amberbg);color:#6B4A00}
+.note.bad{background:#FBD5D2;color:#7A1710}
+#sky{width:100%;max-width:340px;height:auto;display:block;margin:0 auto}
+.methods{display:grid;gap:8px;margin:8px 0 12px}
+.methods label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:10px;padding:10px 12px;cursor:pointer}
+.methods label.off{opacity:.5;cursor:not-allowed}
+.methods input{margin-top:4px}
+.methods b{font:700 17px/1.2 var(--cond)}
+.bar{height:8px;background:var(--paper);border-radius:4px;overflow:hidden;margin:8px 0 6px}
+.bar i{display:block;height:100%;background:var(--ink);width:0;transition:width .3s}
+.heat{font-size:14px;font-weight:600}
+.heat.hot{color:var(--stop)}
+#plot{width:100%;height:220px;display:block;background:var(--sky);border-radius:10px}
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
+.result div{background:var(--paper);border-radius:10px;padding:10px 12px}
+.result span{display:block;font-size:13px;color:var(--ink-2)}
+.result b{font:700 22px/1.1 var(--cond)}
+.flux{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flux input{width:110px;padding:9px 10px;border:1px solid var(--rule);border-radius:8px}
+ul.warns{margin:8px 0 0;padding-left:20px;color:var(--warn);font-weight:600;font-size:14px}
+
+.log{font-size:13px;color:var(--ink-2);display:grid;gap:2px;max-height:150px;overflow:auto}
+.log div{display:grid;grid-template-columns:64px 1fr;gap:8px}
+.log .error{color:var(--stop)} .log .warn{color:var(--warn)}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;
+  font-size:15px;max-width:min(560px,90vw);display:none;z-index:9}
+#toast.err{background:var(--stop)}
+.modal{position:fixed;inset:0;background:rgba(19,32,42,.55);display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);border-radius:14px;padding:22px;max-width:460px}
+.modal h3{font:700 24px/1.1 var(--cond);margin:0 0 8px;color:var(--stop)}
+@media (max-width:520px){.key{min-height:92px}.key b{font-size:36px}#stop{padding:12px 22px}header{padding:10px 16px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- Manual board + Test mode (added) ---------- */
+:root{--passbg:#DDF3E5; --failbg:#FBD5D2; --warnbg:#FFF2CC}
+.startbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.startbar .speed{margin-top:0}
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.board{grid-template-columns:1fr}}
+.lg{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 8px;vertical-align:-1px}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.inputs[hidden]{display:none}
+.inputs label{display:grid;gap:5px;font-size:14px;color:var(--ink-2)}
+.inp{display:flex;align-items:center;border:2px solid var(--rule);border-radius:10px;background:#fff;padding:0 10px}
+.inp:focus-within{border-color:var(--x)}
+.inp input{border:0;outline:0;width:100%;min-width:0;padding:10px 0;font:700 28px/1 var(--cond);background:transparent}
+.inp i{font-style:normal;font:600 20px/1 var(--cond);color:var(--ink-3)}
+.inp.bad{border-color:var(--stop);background:#FFF3F2}
+#gonote{margin-top:12px}
+.goprog{margin-top:10px}
+#dials,#sky2{width:100%;height:auto;display:block}
+#sky2{max-width:420px;margin:6px auto 0}
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.readout div{background:var(--paper);border-radius:10px;padding:8px 10px}
+.readout span{display:block;font-size:12px;color:var(--ink-2)}
+.readout b{font:700 22px/1.1 var(--cond)}
+.curbar{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;margin-top:10px;font-size:14px}
+.curbar .trk{height:12px;background:var(--paper);border-radius:6px;overflow:hidden;position:relative}
+.curbar .trk i{display:block;height:100%;border-radius:6px;transition:width .25s}
+.curbar .trk u{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3)}
+details.sub summary{cursor:pointer;list-style:none}
+details.sub summary::-webkit-details-marker{display:none}
+details.sub summary::before{content:"▸ ";color:var(--ink-3)}
+details.sub[open] summary::before{content:"▾ "}
+
+/* Test */
+.testhead{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tsummary{display:none;border-radius:12px;padding:14px 18px;font:700 22px/1.2 var(--cond)}
+.tsummary.on{display:block}
+.tsummary small{display:block;font:500 14px/1.4 var(--body);margin-top:2px}
+.tsummary.running{background:var(--paper);color:var(--ink)}
+.tsummary.done{background:var(--passbg);color:#0F5A2F}
+.tsummary.failed{background:var(--failbg);color:#7A1710}
+.tsummary.aborted{background:var(--warnbg);color:#6B4A00}
+.segbar{display:flex;gap:4px;margin-top:10px}
+.segbar i{flex:1;height:8px;border-radius:4px;background:var(--rule)}
+.segbar i.running{background:var(--ink);animation:pulse 1.2s infinite}
+.segbar i.pass{background:var(--ok)} .segbar i.warn{background:var(--amber)} .segbar i.fail{background:var(--stop)} .segbar i.skip{background:var(--ink-3);opacity:.5}
+@keyframes pulse{50%{opacity:.4}}
+.tsteps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.tstep{border:1px solid var(--rule);border-radius:14px;padding:16px 16px 16px 64px;position:relative;background:var(--panel)}
+.tstep .ic{position:absolute;left:16px;top:16px;width:34px;height:34px;border-radius:50%;border:2px solid var(--rule);display:flex;align-items:center;justify-content:center;font:700 17px/1 var(--cond);color:var(--ink-3);background:#fff}
+.tstep.running{border-color:var(--ink);box-shadow:0 0 0 3px rgba(19,32,42,.08)}
+.tstep.running .ic{border-color:var(--ink);color:var(--ink)}
+.tstep.running .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--ink);border-right-color:transparent;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tstep.pass .ic{background:var(--ok);border-color:var(--ok);color:#fff}
+.tstep.warn .ic{background:var(--amber);border-color:var(--amber);color:#3d2a00}
+.tstep.fail .ic{background:var(--stop);border-color:var(--stop);color:#fff}
+.tstep.fail{border-color:var(--stop);background:#FFF8F7}
+.tstep.skip{opacity:.6}
+.tstep h3{font:700 20px/1.1 var(--cond);margin:0 0 3px}
+.tstep .det{font-size:15px;color:var(--ink-2);margin:0 0 8px;overflow-wrap:anywhere}
+.tstep.fail .det{color:#7A1710;font-weight:600}
+.tstep .viz{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:760px){.tstep .viz{grid-template-columns:1fr}}
+.mini{width:100%;height:auto;display:block;background:var(--sky);border-radius:10px}
+.mt{width:100%;border-collapse:collapse;font-size:14px}
+.mt th{font:600 12px/1.2 var(--body);color:var(--ink-3);text-align:right;padding:3px 6px;border-bottom:1px solid var(--rule)}
+.mt td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--paper);white-space:nowrap}
+.mt th:first-child,.mt td:first-child{text-align:left}
+.mt td.bad{color:var(--stop);font-weight:700}
+.ladder{display:flex;gap:0;margin:2px 0 10px}
+.ladder span{flex:1;text-align:center;font:600 13px/1.2 var(--cond);padding:7px 2px;background:var(--paper);color:var(--ink-3);border-right:2px solid #fff;position:relative}
+.ladder span:first-child{border-radius:8px 0 0 8px} .ladder span:last-child{border-radius:0 8px 8px 0;border-right:0}
+.ladder span.done{background:#C9E9D4;color:#0F5A2F}
+.ladder span.now{background:var(--ink);color:#fff}
+.ladder span.now.fixed{background:var(--ok)}
+.kvs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.kvs div{background:var(--paper);border-radius:10px;padding:8px 10px}
+.kvs span{display:block;font-size:12px;color:var(--ink-2)}
+.kvs b{font:700 19px/1.15 var(--cond);overflow-wrap:anywhere}
+.modal .box label.chk{display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:16px;cursor:pointer}
+.modal .box label.chk input{width:20px;height:20px;margin-top:2px;flex:none}
+.modal .box h3.t{color:var(--ink)}
+
+/* ---------- Demod tab (added) ---------- */
+.dmstate{font:700 18px/1 var(--cond);padding:8px 14px;border-radius:999px;background:var(--paper);color:var(--ink-2);white-space:nowrap}
+.dmstate.running,.dmstate.starting{background:var(--amberbg);color:#6B4A00}
+.dmstate.done{background:var(--passbg);color:#0F5A2F}
+.dmstate.failed{background:var(--failbg);color:#7A1710}
+.dmstate.stopped{background:var(--warnbg);color:#6B4A00}
+.dmform{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px}
+@media (max-width:760px){.dmform{grid-template-columns:1fr}}
+.dmform .wide,.dmgrid .wide2{grid-column:1/-1}
+.field2{display:grid;gap:6px;align-content:start}
+.field2 label{font-size:14px;color:var(--ink-2)}
+.field2 select,.field2 input[type=text],.field2 input[type=number]{border:2px solid var(--rule);border-radius:10px;padding:10px 12px;background:#fff;font:600 17px/1.2 var(--body);min-width:0;width:100%}
+.field2 select:focus,.field2 input:focus{outline:0;border-color:var(--x)}
+.dmgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.dmgrid{grid-template-columns:1fr}}
+.dmbar{height:10px;background:var(--paper);border-radius:5px;overflow:hidden;margin-top:12px}
+.dmbar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.dmtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px}
+.dmtiles div{background:var(--paper);border-radius:12px;padding:10px 12px}
+.dmtiles span{display:block;font-size:12px;color:var(--ink-2)}
+.dmtiles b{font:700 24px/1.15 var(--cond)}
+.dmtiles .lock b{display:flex;align-items:center;gap:8px}
+.dmtiles .lock i{width:14px;height:14px;border-radius:50%;background:var(--ink-3);display:inline-block}
+.dmtiles .lock.on i{background:var(--ok);box-shadow:0 0 0 4px var(--okbg)}
+.dmtiles .lock.srch i{background:var(--amber);animation:pulse 1.2s infinite}
+.dmtiles .bad b{color:var(--stop)}
+.dmcharts{margin-top:14px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:12px}
+.gcard{border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:#fff}
+.gcard .pic{background:repeating-conic-gradient(#EEF1F3 0 25%,#fff 0 50%) 0 0/16px 16px;display:flex;align-items:center;justify-content:center;min-height:150px}
+.gcard img{max-width:100%;max-height:260px;display:block}
+.gcard .meta{padding:10px 12px;font-size:14px;display:grid;gap:3px}
+.gcard .meta b{font:700 17px/1.2 var(--cond);overflow-wrap:anywhere}
+.badge{display:inline-block;font:700 13px/1 var(--cond);padding:4px 8px;border-radius:6px;letter-spacing:.03em}
+.badge.PASS{background:var(--passbg);color:#0F5A2F} .badge.FAIL{background:var(--failbg);color:#7A1710}
+.badge.none{background:var(--paper);color:var(--ink-2)}
+.dmlog{background:#0E1820;color:#C8D6DF;border-radius:10px;padding:12px;font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace;max-height:240px;overflow:auto;white-space:pre-wrap;margin:10px 0 0}
+
+/* ---------- live view (3D + readouts) ---------- */
+.live{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;max-width:1180px;margin:14px auto 0;padding:0 16px}
+@media (max-width:900px){.live{grid-template-columns:1fr}}
+.viewer{padding:0;overflow:hidden;position:relative;min-height:440px;background:linear-gradient(#F7FAFC,#E4EAEF)}
+#v3d{position:absolute;inset:0}
+.v3dmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--ink-2);font-size:15px;pointer-events:none}
+.v3dmsg[hidden]{display:none}
+.v3dbar{position:absolute;left:10px;bottom:10px;display:flex;gap:8px;z-index:2}
+.v3dbar button{border:1px solid var(--rule);background:rgba(255,255,255,.92);border-radius:8px;padding:6px 10px;font:600 14px/1 var(--cond)}
+.v3dbar button[aria-pressed=false]{opacity:.55}
+.v3dkey{position:absolute;right:10px;top:10px;font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.88);border-radius:8px;padding:6px 9px;line-height:1.5;z-index:2}
+.v3dkey i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.now .act{font:700 26px/1.1 var(--cond);margin:2px 0 2px}
+.now .act.busy{color:var(--ok)}
+.axbig{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.axbig>div{background:var(--paper);border-radius:12px;padding:10px 12px}
+.axbig span{display:block;font-size:13px;color:var(--ink-2)}
+.axbig b{font:700 34px/1.05 var(--cond)}
+.axbig .trk{height:8px;background:#fff;border-radius:4px;position:relative;margin-top:6px;overflow:hidden}
+.axbig .trk i{position:absolute;top:0;bottom:0;border-radius:4px}
+.axbig .trk u{position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;background:var(--ink-3)}
+.dets{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.det{display:flex;align-items:center;gap:6px;font-size:14px;border:1px solid var(--rule);border-radius:999px;padding:5px 11px;color:var(--ink-2)}
+.det.ok{border-color:#9FD5B4;background:var(--okbg);color:#0F5A2F}
+.det.no{opacity:.7}
+.now .readout{margin-top:0}
+
+/* ---------- narration (Sun Auto, Satellite) ---------- */
+.narr{list-style:none;margin:12px 0 0;padding:0;max-height:260px;overflow:auto;border:1px solid var(--rule);border-radius:12px;background:#fff}
+.narr li{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:7px 12px;border-bottom:1px solid var(--paper);font-size:15px}
+.narr li:last-child{background:#F2F8FF;font-weight:600}
+.narr li.warn{color:var(--warn)} .narr li.error{color:var(--stop);font-weight:600}
+.narr .t{color:var(--ink-3);font-size:13px;padding-top:2px}
+.narr.empty{padding:14px 12px;color:var(--ink-3);font-size:14px}
+.between{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.needs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.statusline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.pill{font:700 16px/1 var(--cond);padding:6px 12px;border-radius:999px;background:var(--paper);color:var(--ink-2)}
+.pill.running{background:var(--amberbg);color:#6B4A00} .pill.done{background:var(--passbg);color:#0F5A2F}
+.pill.failed{background:var(--failbg);color:#7A1710} .pill.aborted{background:var(--warnbg);color:#6B4A00}
+
+/* ---------- satellite ---------- */
+.fld{display:grid;gap:5px;font-size:14px;color:var(--ink-2)}
+.fld select,.fld input{border:2px solid var(--rule);border-radius:10px;padding:9px 11px;background:#fff;font:600 16px/1.2 var(--body);min-width:0}
+.fld select:focus,.fld input:focus{outline:0;border-color:var(--x)}
+table.passes{width:100%;border-collapse:collapse;font-size:15px}
+table.passes th{font:600 12px/1.2 var(--body);color:var(--ink-3);text-align:left;padding:4px 8px;border-bottom:1px solid var(--rule)}
+table.passes td{padding:8px;border-bottom:1px solid var(--paper);white-space:nowrap}
+table.passes tr.pk{cursor:pointer} table.passes tr.pk:hover{background:#F6F9FB}
+table.passes tr.sel{background:#EAF1FF}
+table.passes tr.no td{color:var(--ink-3)}
+.tag{font:700 12px/1 var(--cond);padding:3px 7px;border-radius:5px;background:var(--paper);color:var(--ink-2)}
+.tag.ok{background:var(--passbg);color:#0F5A2F} .tag.part{background:var(--warnbg);color:#6B4A00} .tag.now{background:var(--ink);color:#fff} .tag.bad{background:var(--failbg);color:#7A1710}
+#satsky{width:100%;max-width:360px;display:block;margin:0 auto}
+
+/* ---------- test: one card per component ---------- */
+.comps{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.cc{border:1px solid var(--rule);border-radius:14px;padding:16px;display:grid;gap:8px;align-content:start;background:var(--panel)}
+.cc.running{border-color:var(--ink);box-shadow:0 0 0 3px rgba(19,32,42,.08)}
+.cc.pass{border-color:#9FD5B4} .cc.fail{border-color:var(--stop);background:#FFF8F7} .cc.warn{border-color:var(--amber)}
+.cc.missing{background:var(--paper)}
+.cc .hd{display:flex;gap:10px;align-items:center}
+.cc .ic{width:30px;height:30px;border-radius:50%;border:2px solid var(--rule);display:flex;align-items:center;justify-content:center;font:700 16px/1 var(--cond);flex:none;background:#fff}
+.cc.pass .ic{background:var(--ok);border-color:var(--ok);color:#fff} .cc.fail .ic{background:var(--stop);border-color:var(--stop);color:#fff}
+.cc.warn .ic{background:var(--amber);border-color:var(--amber);color:#3d2a00}
+.cc.running .ic{border-color:var(--ink);animation:pulse 1.2s infinite}
+.cc h3{margin:0;font:700 20px/1.1 var(--cond)}
+.cc .who{font-size:13px;color:var(--ink-3)}
+.cc .who.ok{color:var(--ok)}
+.cc .det2{font-size:15px;color:var(--ink-2);overflow-wrap:anywhere}
+.cc.fail .det2{color:#7A1710;font-weight:600}
+.cc .runrow{display:flex;gap:10px;align-items:center;margin-top:2px}
+.cc .btn{padding:8px 18px;font-size:18px}
+.mv{font:700 12px/1 var(--cond);background:var(--amberbg);color:#6B4A00;padding:3px 7px;border-radius:5px}
+</style>
+<!-- DISABLED (test stage): full-UI styles (sky dome, rulers, Calibrate/Auto panels). media="not all" = never applied. -->
+
+</head>
+<body>
+<header>
+  <div class="brand">Gimbal Console<small>Manual · Sun · Satellite · Test · Demod</small></div>
+  <div class="chips">
+    <span class="chip" id="c-pi"><i class="dot"></i><span>Pi relay: –</span></span>
+    <span class="chip" id="c-mot"><i class="dot"></i><span>Motors: –</span></span>
+    <span class="chip" id="c-sdr"><i class="dot"></i><span>SDR: –</span></span>
+    <span class="chip" id="c-gnss"><i class="dot"></i><span>GNSS: –</span></span>
+    <span class="chip" id="c-volt"><i class="dot"></i><span>Bus –</span></span>
+    <span class="sim" id="simtag" hidden>Simulator</span>
+  </div>
+  <button id="stop" title="Stop everything (Space or Esc). Motors stay ON and holding.">STOP<small>Space / Esc</small></button>
+</header>
+<div class="banner" id="banner"></div>
+
+
+<section class="live" aria-label="Live view of the gimbal">
+  <div class="card viewer">
+    <div id="v3d">
+      <div class="v3dmsg" id="v3d-msg">Loading the 3D model…</div>
+      <div class="v3dbar"><button id="v3d-reset" title="Reset the camera">Reset view</button><button id="v3d-pause" aria-pressed="true" title="Turn the 3D drawing off if the page feels slow">3D on</button><button id="v3d-sky" aria-pressed="true" title="Show the Sun and satellite around the dish">Sun / satellite</button></div>
+      <div class="v3dkey"><i style="background:#1ec8d8"></i>beam &nbsp;<i style="background:#ffb703"></i>Sun &nbsp;<i style="background:#1b6ef3"></i>satellite<br>drag = rotate · scroll = zoom</div>
+    </div>
+  </div>
+  <div class="card now">
+    <h2>Right now</h2>
+    <div class="act" id="lv-act">–</div>
+    <div class="muted small" id="lv-sub"></div>
+    <div class="axbig">
+      <div><span>X axis · tilt N ↔ S</span><b id="lv-x">–</b><div class="trk"><i id="lv-xb" style="background:var(--x)"></i><u></u></div></div>
+      <div><span>Y axis · tilt W ↔ E</span><b id="lv-y">–</b><div class="trk"><i id="lv-yb" style="background:var(--y)"></i><u></u></div></div>
+    </div>
+    <div class="readout"><div><span>Beam azimuth</span><b id="lv-az">–</b></div><div><span>Beam elevation</span><b id="lv-el">–</b></div><div><span>North known?</span><b id="lv-yaw">–</b></div></div>
+    <div class="dets" id="lv-dets"></div>
+  </div>
+</section>
+<nav class="tabs" role="tablist" aria-label="Panels">
+  <button role="tab" id="t-manual" aria-selected="true" aria-controls="p-manual">Manual</button>
+  <button role="tab" id="t-sun" aria-selected="false" aria-controls="p-sun">Sun</button>
+  <button role="tab" id="t-sat" aria-selected="false" aria-controls="p-sat">Satellite</button>
+  <button role="tab" id="t-test" aria-selected="false" aria-controls="p-test">Test</button>
+  <button role="tab" id="t-demod" aria-selected="false" aria-controls="p-demod">Demod</button>
+</nav>
+<main>
+  <!-- ======================= MANUAL ======================= -->
+  <section class="panel" id="p-manual" role="tabpanel" aria-labelledby="t-manual">
+    <div class="startbar">
+      <button class="btn go" id="start">Start</button>
+      <div id="startmsg" class="muted">Waiting for the drives…</div>
+      <div class="speed" style="margin:0 0 0 auto">
+        <span class="muted">Speed</span><span class="big" id="speed">1.0 °/s</span>
+        <div class="seg" id="speeds" role="group" aria-label="Speed"></div>
+        <span class="muted small" id="speednote"></span>
+      </div>
+    </div>
+
+    <div class="board">
+      <!-- Go to an angle -->
+      <div class="sub" id="gocard">
+        <h2>Go to angle</h2>
+        <div class="seg" id="gomode" role="group" aria-label="Angle type">
+          <button data-m="xy" aria-pressed="true">Axis X / Y</button><button data-m="azel" aria-pressed="false">Sky Az / El</button>
+        </div>
+        <div class="inputs" id="go-xy">
+          <label>X · tilt N ↔ S<span class="inp"><input id="gx" type="number" step="0.1" min="-80" max="80" inputmode="decimal" placeholder="0.0"><i>°</i></span></label>
+          <label>Y · tilt W ↔ E<span class="inp"><input id="gy" type="number" step="0.1" min="-80" max="80" inputmode="decimal" placeholder="0.0"><i>°</i></span></label>
+        </div>
+        <div class="inputs" id="go-azel" hidden>
+          <label>Azimuth · 0 = true N<span class="inp"><input id="gaz" type="number" step="0.1" min="0" max="360" inputmode="decimal" placeholder="0.0"><i>°</i></span></label>
+          <label>Elevation<span class="inp"><input id="gel" type="number" step="0.1" min="0" max="90" inputmode="decimal" placeholder="45.0"><i>°</i></span></label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn go" id="gogo">Go</button>
+          <button class="btn ghost" id="gohome" title="Both axes to X 0, Y 0">HOME 0 / 0</button>
+          <button class="btn ghost" id="gonorth" title="True north, 45° up (needs the mount yaw from Test or the Sun find)">North · 45°</button>
+        </div>
+        <div class="note" id="gonote">Type an angle and press Go. Space / Esc stops.</div>
+        <div class="goprog" id="goprog" hidden><div class="bar"><i id="gobar"></i></div><span id="gotxt" class="muted small"></span></div>
+      </div>
+
+      <!-- Axis dials -->
+      <div class="sub">
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">Axes</h3>
+          <span class="muted small"><i class="lg" style="background:#13202A"></i>now <i class="lg" style="background:var(--amber)"></i>target <i class="lg" style="background:#F2C9C5"></i>near limit</span></div>
+        <svg id="dials" viewBox="0 0 560 215" role="img" aria-label="X and Y axis dials"></svg>
+      </div>
+
+      <!-- Sky view -->
+      <div class="sub">
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">Where the beam points</h3><span class="muted small" id="skynote2"></span></div>
+        <svg id="sky2" viewBox="-114 -114 228 228" role="img" aria-label="Sky plot with beam, target and Sun"></svg>
+        <div class="legend"><span><i style="border-color:var(--nogo);background:var(--nogo)"></i>unreachable</span>
+          <span><i style="border-color:var(--x);background:#fff;border-radius:50%"></i>beam</span>
+          <span><i style="border-color:var(--amber);background:var(--amberbg);border-radius:50%"></i>target</span>
+          <span><i style="border-color:var(--sun);background:var(--sun);border-radius:50%"></i>Sun</span>
+          <span><i style="border-color:var(--ok);background:var(--ok);transform:rotate(45deg)"></i>true north · 45°</span></div>
+        <div class="readout"><div><span>Azimuth</span><b id="r-az">–</b></div><div><span>Elevation</span><b id="r-el">–</b></div><div><span>Mount yaw ψ</span><b id="r-yaw">–</b></div></div>
+      </div>
+
+      <!-- Angle history -->
+      <details class="sub" style="grid-column:1/-1"><summary><h3 style="display:inline">Axis angles over time</h3></summary>
+      <div>
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">Axis angles over time</h3>
+          <span class="seg" id="angwin" role="group" aria-label="Window"><button data-s="30">30 s</button><button data-s="120" aria-pressed="true">2 min</button><button data-s="600">10 min</button></span></div>
+        <svg id="angplot" viewBox="0 0 600 230" preserveAspectRatio="none" role="img" aria-label="X and Y angle history" style="width:100%;height:230px"></svg>
+        <div class="legend" style="justify-content:flex-start"><span><i style="border-color:var(--x);background:var(--x)"></i>X</span><span><i style="border-color:var(--y);background:var(--y)"></i>Y</span><span>dashed = target</span></div>
+        <div id="cur"></div>
+      </div></details>
+    </div>
+
+    <details class="sub">
+      <summary><h3 style="display:inline">Live power (SDR)</h3></summary>
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:8px">
+        <span class="muted small" id="livestats">–</span>
+        <span class="row" style="gap:8px">
+          <span class="seg" id="livewin" role="group" aria-label="Window">
+            <button data-s="30">30 s</button><button data-s="120" aria-pressed="true">2 min</button><button data-s="600">10 min</button>
+          </span>
+          <button class="btn ghost" id="liveclear">Clear</button>
+        </span>
+      </div>
+      <svg id="liveplot" viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label="Live power plot" style="width:100%;height:240px"></svg>
+      <div class="muted small">x: seconds ago · y: dBFS · <span style="color:#E3A008">■</span> peak hold</div>
+    </details>
+
+    <details class="sub" id="keysbox">
+      <summary><h3 style="display:inline">Keyboard jog (WASD) and drive details</h3></summary>
+      <p class="muted small" style="margin:8px 0 12px">Press a key once to move, again to stop. The opposite key stops first; press it again to reverse.
+        Each move runs to the <b>±80°</b> soft limit unless stopped. <b>Home</b> takes both axes to 0/0 together at the current speed.</p>
+      <div class="cross">
+        <button class="key x" id="kW" data-axis="x" data-dir="1"><b>W</b><span class="lbl">W — X +</span><span class="st"></span></button>
+        <button class="key y" id="kA" data-axis="y" data-dir="-1"><b>A</b><span class="lbl">A — Y −</span><span class="st"></span></button>
+        <div class="hub"><button class="btn ghost" id="home" title="Both axes to HOME (0/0)">Home</button><span id="homemsg">Space / Esc = STOP</span></div>
+        <button class="key y" id="kD" data-axis="y" data-dir="1"><b>D</b><span class="lbl">D — Y +</span><span class="st"></span></button>
+        <button class="key x" id="kS" data-axis="x" data-dir="-1"><b>S</b><span class="lbl">S — X −</span><span class="st"></span></button>
+      </div>
+      <div class="legend">
+        <span><i style="border-color:var(--amber);background:var(--amberbg)"></i>command in flight / stopping</span>
+        <span><i style="border-color:var(--ok);background:var(--okbg)"></i>moving (drive state 2)</span>
+        <span><i style="border-color:var(--stop);background:#FBD5D2"></i>refused</span>
+      </div>
+      <div class="tablewrap">
+        <table class="axes">
+          <thead><tr><th>Axis</th><th>Angle from HOME</th><th>Raw counts</th><th>Current</th><th>State</th><th>Temp</th></tr></thead>
+          <tbody id="axrows"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- ======================= TEST ======================= -->
+  <section class="panel" id="p-test" role="tabpanel" aria-labelledby="t-test" hidden>
+    <div class="between">
+      <div>
+        <h2>Check the hardware</h2>
+        <p class="muted small" style="margin:0;max-width:62ch">Everything that is plugged in is detected automatically. Run any check on its own, or run all that are available.
+          Checks marked <span class="mv">moves the dish</span> ask you to confirm first.</p>
+      </div>
+      <div class="row">
+        <button class="btn go" id="testall">Run all detected</button>
+        <button class="btn danger" id="testabort">Abort</button>
+      </div>
+    </div>
+    <div class="tsummary" id="tsummary"></div>
+    <div class="comps" id="comps"></div>
+  </section>
+
+  <!-- ======================= DEMOD ======================= -->
+  <section class="panel" id="p-demod" role="tabpanel" aria-labelledby="t-demod" hidden>
+    <div class="sub">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;gap:16px">
+        <div>
+          <h2>Demodulator</h2>
+          <p class="muted small" style="margin:0;max-width:62ch">DVB-S2 receive chain (patched gr-dvbs2rx) with the GSSE / GSUFTP image decoder. It runs as a separate program,
+            so a receiver crash never stops the gimbal. <b>Receive only</b>: it never transmits.</p>
+        </div>
+        <span class="dmstate" id="dm-state">idle</span>
+      </div>
+      <div class="note bad" id="dm-missing" hidden></div>
+
+      <div class="dmform">
+        <div class="field2"><label>What to do</label>
+          <div class="seg" id="dm-mode" role="group" aria-label="Mode">
+            <button data-m="file" aria-pressed="true">Decode a recording</button><button data-m="record" aria-pressed="false">Record a pass</button><button data-m="live" aria-pressed="false">Live decode</button>
+          </div></div>
+        <div class="field2"><label for="dm-preset">Signal preset</label>
+          <select id="dm-preset"></select><span class="muted small" id="dm-presethint"></span></div>
+
+        <div class="field2 wide" id="dm-src-file"><label for="dm-file">IQ recording</label>
+          <select id="dm-file"></select>
+          <input id="dm-path" type="text" placeholder="…or paste a path, e.g. /media/ssd/pass1/g5_20261110T030000Z.sc16" spellcheck="false">
+          <span class="muted small">Recordings from the recording folder are listed. The receiver reads the time and settings from the file's .json / .start sidecars.</span></div>
+
+        <div class="wide" id="dm-src-sdr" hidden>
+          <div class="dmgrid">
+            <div class="field2"><label for="dm-freq">Centre frequency (IF, MHz)</label><input id="dm-freq" type="number" step="0.001"></div>
+            <div class="field2"><label for="dm-gain">RX gain (dB)</label><input id="dm-gain" type="number" step="1" min="0" max="76"></div>
+            <div class="field2"><label for="dm-dur">Stop after (minutes, 0 = until Stop)</label><input id="dm-dur" type="number" step="1" min="0" value="0"></div>
+            <div class="field2 wide2"><label for="dm-rec">Recording folder</label><input id="dm-rec" type="text" spellcheck="false"></div>
+          </div>
+          <div class="note warn" id="dm-sdrnote">Starting this takes the B206mini away from the power meter (Sun scans and the live power chart pause) and gives it back when the run ends.</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn go" id="dm-start">Start</button>
+        <button class="btn danger" id="dm-stop">Stop</button>
+        <span class="muted small" id="dm-msg"></span>
+      </div>
+      <div class="dmbar" id="dm-barwrap" hidden><i id="dm-bar"></i></div>
+    </div>
+
+    <div class="sub">
+      <h3>Link</h3>
+      <div class="dmtiles" id="dm-tiles"></div>
+      <div class="dmcharts">
+        <div><div class="muted small">SNR (dB) <span class="lg" style="background:#2F5BD3"></span> and carrier offset (kHz) <span class="lg" style="background:#B5338A"></span> since the run started</div>
+          <svg id="dm-chart" viewBox="0 0 600 190" preserveAspectRatio="none" role="img" aria-label="SNR and carrier offset" style="width:100%;height:190px"></svg></div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <div class="row" style="justify-content:space-between;gap:10px">
+        <h3 style="margin:0">Received files <span class="muted small" id="dm-runname"></span></h3>
+        <label class="muted small">Earlier runs <select id="dm-runs"></select></label>
+      </div>
+      <div class="gallery" id="dm-gallery"><div class="muted">Nothing received yet.</div></div>
+    </div>
+
+    <details class="sub">
+      <summary><h3 style="display:inline">Receiver log and command</h3></summary>
+      <pre class="dmlog" id="dm-cmd"></pre>
+      <pre class="dmlog" id="dm-log"></pre>
+    </details>
+  </section>
+
+  <!-- ======================= SUN / G/T ======================= -->
+  <section class="panel" id="p-sun" role="tabpanel" aria-labelledby="t-sun" hidden>
+    <div class="sub">
+      <div class="between">
+        <div>
+          <h2>Track the Sun automatically</h2>
+          <p class="muted small" style="margin:0;max-width:64ch">One button. It starts the motors, finds true north from the GNSS, works out where the Sun is,
+            points the dish at it, fine-tunes on the Sun's radio noise if the SDR is plugged in, then follows it. Every step is narrated below.</p>
+        </div>
+        <div class="row">
+          <button class="btn go" id="sunauto">Track the Sun</button>
+          <button class="btn danger" id="sunautostop">Stop</button>
+        </div>
+      </div>
+      <div class="needs" id="sunneeds"></div>
+      <div class="note bad" id="sunwhy" hidden></div>
+      <div class="statusline"><span class="pill" id="autopill">idle</span><b id="autostep"></b><span class="heat" id="autoheat"></span></div>
+      <div class="bar"><i id="autobar"></i></div>
+      <ol class="narr empty" id="sunnarr"><li style="display:block;border:0;background:none;font-weight:400">Nothing running. Press <b>Track the Sun</b>.</li></ol>
+      <p class="muted small" style="margin:10px 0 0">Safety: the dish focuses sunlight onto the LNB, so after <span id="heatlim2">120</span> s on the Sun the dish moves 10° off by itself and the run ends. Press Stop (or Space / Esc) any time.</p>
+    </div>
+    <details class="sub">
+      <summary><h3 style="display:inline">Advanced: step by step and G/T</h3></summary>
+      <div style="display:grid;gap:16px;margin-top:12px">
+    <div class="two">
+      <div class="sub">
+        <h2>Sun now</h2>
+        <div class="sunbig" id="sunazel">–</div>
+        <dl class="kv">
+          <dt>Site</dt><dd id="site">–</dd>
+          <dt>Sun needs</dt><dd id="sunaxes">–</dd>
+          <dt>Beam points</dt><dd id="beam">–</dd>
+          <dt>Boresight offset</dt><dd id="offset">–</dd>
+        </dl>
+        <div class="note" id="advice"></div>
+        <div class="note warn" id="offwarn" hidden></div>
+        <div class="note bad" id="checks" hidden></div>
+      </div>
+      <div class="sub">
+        <h3>Reachable sky <span class="muted small" id="reachnote"></span></h3>
+        <svg id="sky" viewBox="-110 -110 220 220" role="img" aria-label="Sky plot: reachable region, Sun and beam"></svg>
+        <div class="legend"><span><i style="border-color:var(--nogo);background:var(--nogo)"></i>beam can't reach (±80°, offset)</span>
+          <span><i style="border-color:var(--sun);background:var(--sun);border-radius:50%"></i>Sun (±3 h path)</span>
+          <span><i style="border-color:var(--x);background:#fff;border-radius:50%"></i>beam</span></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="sub">
+        <h2>Find the Sun</h2>
+        <div class="methods" role="radiogroup" aria-label="Method">
+          <label id="lm1"><input type="radio" name="method" value="gnss"><span><b>1 · GNSS true north + peak-up</b><br>
+            <span class="muted small" id="m1why">Heading averaged 60 s (RTK FIXED only), ψ = heading − 90°, then peak-up.</span></span></label>
+          <label id="lm2"><input type="radio" name="method" value="blind" checked><span><b>2 · Blind search (no GNSS)</b><br>
+            <span class="muted small">Elevation-ring scan at the Sun's elevation, predicted az ±40° (then el ±1.2°, then ±80°), then peak-up.</span></span></label>
+        </div>
+        <div class="row">
+          <button class="btn go" id="sunstart">Start Sun find</button>
+          <button class="btn danger" id="sunabort">Abort</button>
+        </div>
+        <div style="margin-top:14px">
+          <div class="row" style="justify-content:space-between"><b id="sunstep">idle</b><span class="heat" id="heat"></span></div>
+          <div class="bar"><i id="sunbar"></i></div>
+          <div class="muted small" id="sunmsg"></div>
+        </div>
+      </div>
+      <div class="sub">
+        <h3 id="plottitle">Power</h3>
+        <svg id="plot" viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label="Power plot"></svg>
+        <div class="muted small" id="plotx"></div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Result</h2>
+        <span class="muted small" id="logname"></span>
+      </div>
+      <div class="result" id="result"><div><span>No result yet</span><b>–</b></div></div>
+      <ul class="warns" id="warns"></ul>
+      <div class="row" style="margin-top:14px">
+        <div class="flux"><label for="flux">Solar flux today (~15 GHz)</label>
+          <input id="flux" type="number" min="0" step="1" placeholder="sfu"><span class="muted small">sfu</span></div>
+        <button class="btn" id="gtbtn">Measure G/T</button>
+        <button class="btn ghost" id="trackbtn">Track Sun</button>
+        <button class="btn ghost" id="offbtn">Move 10° off</button>
+      </div>
+      <p class="muted small" style="margin:8px 0 0">G/T = 8πk(Y−1)L / (λ²S), λ = c/14.0 GHz, S = sfu × 10⁻²², L = 1 + 0.38(0.53°/θ)², θ = measured FWHM.
+        LNB heat rule: at most <span id="heatlim">120</span> s continuously within 1.5° of the Sun, then the dish moves 10° off by itself.</p>
+    </div>
+      </div>
+    </details>
+  </section>
+
+
+  <!-- ======================= SATELLITE ======================= -->
+  <section class="panel" id="p-sat" role="tabpanel" aria-labelledby="t-sat" hidden>
+    <div class="sub">
+      <div class="between">
+        <div>
+          <h2>Track a satellite</h2>
+          <p class="muted small" style="margin:0;max-width:64ch">Pick a satellite, or leave it on <b>Auto</b> to take the pass that is in progress or the next one the dish can follow.
+            It gets fresh orbital elements from CelesTrak, finds north, checks the whole path before moving, slews to the rise point, waits, tracks, and parks.</p>
+        </div>
+        <div class="row">
+          <button class="btn go" id="satgo">Track</button>
+          <button class="btn danger" id="satstop">Stop</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px;align-items:end">
+        <label class="fld">Satellite<select id="satsel"><option value="">Auto: next trackable pass</option></select></label>
+        <label class="fld">Add by NORAD number<span class="row" style="gap:8px;flex-wrap:nowrap"><input id="satadd" type="number" min="1" placeholder="e.g. 25544" style="width:130px"><button class="btn ghost" id="satadd-btn" style="padding:9px 16px">Add</button></span></label>
+        <button class="btn ghost" id="satrefresh" style="padding:9px 16px">Refresh predictions</button>
+      </div>
+      <div class="note bad" id="satwhy" hidden></div>
+      <div class="statusline"><span class="pill" id="satpill">idle</span><b id="satstep"></b><span class="muted" id="satlive"></span></div>
+      <ol class="narr empty" id="satnarr"><li style="display:block;border:0;background:none;font-weight:400">Nothing running. Press <b>Track</b>.</li></ol>
+    </div>
+    <div class="two">
+      <div class="sub">
+        <div class="between"><h3 style="margin:0">Upcoming passes (next 24 h)</h3><span class="muted small" id="satnote"></span></div>
+        <div class="tablewrap"><table class="passes"><thead><tr><th>Time (local)</th><th>Satellite</th><th>Max el.</th><th>Dish can follow</th></tr></thead><tbody id="satrows"></tbody></table></div>
+      </div>
+      <div class="sub">
+        <h3>Sky track <span class="muted small" id="satskyt"></span></h3>
+        <svg id="satsky" viewBox="-116 -116 232 232" role="img" aria-label="Sky plot of the selected pass"></svg>
+        <div class="legend"><span><i style="border-color:#1b6ef3;background:#1b6ef3"></i>dish can follow</span><span><i style="border-color:#9aa7b3;background:#9aa7b3"></i>out of reach</span>
+          <span><i style="border-color:var(--ok);background:var(--ok);border-radius:50%"></i>rises</span><span><i style="border-color:var(--stop);background:var(--stop);border-radius:50%"></i>sets</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card log" id="log" aria-label="Event log"></section>
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="box">
+    <h3 id="mtitle">Motors switch off for a moment — support the load</h3>
+    <p>Start sets up both drives (motor OFF), waits 1 s, then wakes X (+0.5° and back) and then Y the same way.
+       After that both motors are ON and holding.</p>
+    <p id="mspeed" class="muted"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" id="mcancel">Cancel</button>
+      <button class="btn go" id="mgo">Load supported — Start</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="tmodal" role="dialog" aria-modal="true" aria-labelledby="tmtitle">
+  <div class="box">
+    <h3 id="tmtitle">The dish WILL move</h3>
+    <p id="tmtext">The test starts the motors if they are off, moves X and Y by ±5° and back to HOME, then tilts the dish to point at true north, 45° up.</p>
+    <p class="muted small" id="tmest"></p>
+    <label class="chk"><input type="checkbox" id="tc1"><span>The area around the dish is <b>clear</b> (people, cables, walls).</span></label>
+    <label class="chk"><input type="checkbox" id="tc2"><span>I have a hand on the <b>ePower switch</b>.</span></label>
+    <label class="chk"><input type="checkbox" id="tc3"><span>The load is <b>supported</b> (the motors switch off briefly during Start).</span></label>
+    <div class="row" style="justify-content:flex-end;margin-top:12px">
+      <button class="btn ghost" id="tcancel">Cancel</button>
+      <button class="btn go" id="tgo" disabled>Go</button>
+    </div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let S = null, linkOk = false, lastSeq = {x: null, y: null};
+const inflight = new Set();                  // "x1", "y-1": key pressed, POST not answered yet
+const KEYS = {w: ["x", 1], s: ["x", -1], d: ["y", 1], a: ["y", -1]};
+const keyEl = (ax, d) => document.querySelector(`.key[data-axis="${ax}"][data-dir="${d}"]`);
+
+// ------------------------------------------------------------- commands
+async function cmd(c, quiet) {
+  try {
+    const r = await fetch("/api/cmd", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(c)});
+    const j = await r.json();
+    if (!j.ok && !quiet) toast(j.error, true);
+    return j;
+  } catch (e) { if (!quiet) toast("No connection to the station", true); return {ok: false, error: "no connection"}; }
+}
+let tt = null;
+function toast(msg, err) {
+  const t = $("toast"); t.textContent = msg; t.className = err ? "err" : ""; t.style.display = "block";
+  clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", 5000);
+}
+function flash(ax, d) {
+  const k = keyEl(ax, d); if (!k) return;
+  k.classList.remove("flash"); void k.offsetWidth; k.classList.add("flash");
+}
+function stopAll(why) { cmd({cmd: "stop", why: why || "STOP button"}); }
+
+async function press(ax, d) {
+  if (!S || !S.gimbal.started) { toast("Press Start first", true); flash(ax, d); return; }
+  const id = ax + d;
+  inflight.add(id); render();
+  const j = await cmd({cmd: "key", axis: ax, dir: d}, true);
+  inflight.delete(id);
+  if (!j.ok) { flash(ax, d); toast(j.error, true); }
+  render();
+}
+
+// heartbeat (deadman: the station stops everything if it hears nothing for 2 s)
+setInterval(() => cmd({cmd: "heartbeat"}, true), 500);
+addEventListener("pagehide", () => {
+  try { navigator.sendBeacon("/api/cmd", new Blob([JSON.stringify({cmd: "stop", why: "page closed"})], {type: "application/json"})); } catch (e) {}
+});
+
+// ------------------------------------------------------------- tabs
+let tab = "manual";
+try { tab = localStorage.getItem("gs-tab") || "manual"; } catch (e) {}
+if (["manual", "sun", "sat", "test", "demod"].includes(location.hash.slice(1))) tab = location.hash.slice(1);
+function setTab(t) {
+  tab = t;
+  for (const n of ["manual", "sun", "sat", "test", "demod"]) { $("t-" + n).setAttribute("aria-selected", n === t); $("p-" + n).hidden = n !== t; }
+  try { localStorage.setItem("gs-tab", t); } catch (e) {}
+  if (typeof S !== "undefined" && S) schedule();
+}
+$("t-manual").onclick = () => setTab("manual");
+$("t-test").onclick = () => setTab("test");
+$("t-demod").onclick = () => setTab("demod");
+$("t-sun").onclick = () => setTab("sun");
+$("t-sat").onclick = () => setTab("sat");
+setTab(tab);
+
+// ------------------------------------------------------------- input
+$("stop").onclick = () => stopAll("STOP button");
+document.querySelectorAll(".key").forEach(b => b.onclick = () => press(b.dataset.axis, +b.dataset.dir));
+$("start").onclick = () => {
+  $("mspeed").textContent = `Speed ${S ? S.gimbal.speed.toFixed(1) : "1.0"} °/s.`;
+  $("modal").classList.add("on"); $("mgo").focus();
+};
+$("mcancel").onclick = () => $("modal").classList.remove("on");
+$("mgo").onclick = async () => {
+  $("modal").classList.remove("on");
+  const j = await cmd({cmd: "start", confirm: true});
+  if (j.ok) toast("Start: setting up and waking the motors…");
+};
+$("home").onclick = async () => { const j = await cmd({cmd: "home"}); if (j.ok) toast("Homing both axes to 0/0…"); };
+$("sunstart").onclick = async () => {
+  const m = document.querySelector('input[name="method"]:checked').value;
+  const j = await cmd({cmd: "sun_start", method: m});
+  if (j.ok) toast(m === "gnss" ? "Method 1: averaging the GNSS heading…" : "Method 2: elevation-ring scan…");
+};
+$("sunabort").onclick = () => cmd({cmd: "sun_abort", why: "Abort button"});
+$("gtbtn").onclick = () => cmd({cmd: "sun_gt"});
+$("trackbtn").onclick = () => cmd({cmd: "sun_track"});
+$("offbtn").onclick = () => cmd({cmd: "sun_off"});
+let fluxT = null;
+$("flux").oninput = () => { clearTimeout(fluxT); fluxT = setTimeout(() => cmd({cmd: "flux", sfu: $("flux").value === "" ? null : +$("flux").value}), 400); };
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === " " || k === "escape" || e.code === "Space") {
+    if (e.target && e.target.tagName === "INPUT" && k === " ") return;
+    e.preventDefault(); $("modal").classList.remove("on"); $("tmodal").classList.remove("on");
+    if (!e.repeat) stopAll(k === "escape" ? "Esc key" : "Space key");
+    return;
+  }
+  if (e.target && e.target.tagName === "INPUT") return;
+  if (!KEYS[k] || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  if (e.repeat || $("modal").classList.contains("on")) return;   // ignore keyboard auto-repeat
+  press(...KEYS[k]);
+});
+
+// ------------------------------------------------------------- helpers
+function chip(id, level, text) { const c = $(id); c.querySelector(".dot").className = "dot " + level; c.querySelector("span").textContent = text; }
+const hm = iso => new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"});
+const sg = (v, n) => v == null ? "–" : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(n);
+const deg = v => v == null ? "–" : sg(v, 3) + "°";
+const amp = v => v == null ? "–" : sg(v, 2) + " A";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function motorsChip(g) {
+  const ax = [g.axes.x, g.axes.y];
+  if (g.mode === "offline") return ["bad", "no reply"];
+  if (g.mode === "fault") return ["bad", "fault"];
+  if (g.mode === "starting" || g.mode === "homing" || ax.some(a => a.state === 2 || ["starting", "moving", "stopping", "waking", "homing"].includes(a.phase) || a.stepping))
+    return ["warn", "moving"];
+  if (g.started && ax.every(a => [1, 3, 4].includes(a.state))) return ["ok", "holding"];
+  return ["", "off"];
+}
+
+// ------------------------------------------------------------- render
+let speedsBuilt = false;
+function render() {
+  if (!S) return;
+  const g = S.gimbal, ax = g.axes;
+  $("simtag").hidden = !S.sim;
+  const R = S.relay;
+  const rl = !linkOk ? ["bad", "no connection to the app"] : R.kind === "sim" ? ["ok", "simulator"] :
+             R.kind === "local" ? ["ok", "local CAN"] : R.connected ? ["ok", "connected"] : ["bad", "offline"];
+  chip("c-pi", rl[0], "Pi relay: " + rl[1]);
+  $("c-pi").title = R.error || R.name || "";
+  const mc = motorsChip(g); chip("c-mot", mc[0], "Motors: " + mc[1]);
+  chip("c-sdr", S.sdr.available ? (S.sdr.sat ? "warn" : "ok") : "bad",
+       "SDR: " + (S.sdr.available ? (S.sdr.sat ? "SATURATED" : `ready ${S.sdr.db != null ? S.sdr.db.toFixed(1) + " dBFS" : ""}`) : "missing"));
+  $("c-sdr").title = S.sdr.error || "";
+  const gn = S.gnss; chip("c-gnss", gn.chip === "RTK FIXED" ? "ok" : gn.connected ? "warn" : "", "GNSS: " + gn.chip);
+  chip("c-volt", g.bus_v ? (g.bus_v > 40 ? "ok" : "warn") : "", g.bus_v ? `Bus ${g.bus_v.toFixed(1)} V` : "Bus –");
+
+  const ban = $("banner");
+  const errs = [];
+  if (g.fault) errs.push(g.fault);
+  if (R.kind === "remote" && !R.connected) errs.push(`Pi relay offline: ${R.error || ""} (the relay STOPs both motors after 2 s without the app)`);
+  if (S.sdr.sat) errs.push("SDR saturated (|x| > 0.7 FS): reduce gain");
+  ban.textContent = errs.join(" · "); ban.classList.toggle("on", errs.length > 0);
+
+  const sunBusy = S.sun.busy;
+  // Start
+  const busy = ["x", "y"].some(k => ax[k].phase !== "idle");
+  $("start").disabled = g.mode === "offline" || g.mode === "starting" || g.mode === "homing" || busy || sunBusy;
+  $("start").textContent = g.started ? "Start again" : "Start";
+  $("startmsg").innerHTML = {
+    offline: R.kind === "remote" && !R.connected ? "Pi relay not reachable. Is <code>can_relay.py</code> running on the Pi?" :
+             "Drives not answering. Check 48 V, the CAN cable and <code>can0</code> on the Pi.",
+    ready: "Drives found, nothing moved. Press <b>Start</b> to set up and wake both motors.",
+    starting: `Starting: <b>${esc(g.start_step || "…")}</b>`,
+    homing: `<b>Homing</b> to 0/0 at ${g.speed.toFixed(1)} °/s… (STOP to stop)`,
+    on: g.act ? `Busy: <b>${esc(g.act.label)}</b>${g.act.clipped ? " — " + esc(g.act.msg) : ""}` : "Both motors ON and holding. Use the keys.",
+    fault: "Fault. Support the load, then press <b>Start</b> again.",
+  }[g.mode] || g.mode;
+
+  // Home
+  const homing = g.homing || g.mode === "homing";
+  $("home").classList.toggle("active", homing);
+  $("home").disabled = homing ? false : (g.mode === "offline" || g.mode === "starting" || busy || sunBusy || !!g.act);
+  const hr = g.home_result;
+  $("homemsg").textContent = homing ? "homing…" : hr ? (hr.err_counts ? `error X ${sg(hr.err_counts.x, 0)}, Y ${sg(hr.err_counts.y, 0)} counts` : hr.msg) : "Space / Esc = STOP";
+
+  // speed
+  $("speed").textContent = `${g.speed.toFixed(1)} °/s`;
+  if (!speedsBuilt) {
+    $("speeds").innerHTML = g.speeds.map(v => `<button data-v="${v}">${v.toFixed(1)}</button>`).join("");
+    $("speeds").querySelectorAll("button").forEach(b => b.onclick = async () => {
+      const j = await cmd({cmd: "speed", value: +b.dataset.v});
+      if (j.ok && j.result === "needs start") toast("The drive refused a live speed change. Support the load and press Start to apply it.", true);
+    });
+    speedsBuilt = true;
+  }
+  $("speeds").querySelectorAll("button").forEach(b => {
+    b.setAttribute("aria-pressed", +b.dataset.v === g.speed); b.disabled = busy || g.mode === "starting" || homing || sunBusy;
+  });
+  $("speednote").textContent = g.speed_pending ? `${g.speed_pending.toFixed(1)} °/s needs Start (motors off briefly)` :
+    g.live_speed_ok === true ? "live change accepted" : "";
+
+  // keys
+  for (const [k, [a, d]] of Object.entries(KEYS)) {
+    const el = keyEl(a, d), A = ax[a], mine = A.latch === d;
+    const moving = A.phase === "moving" && mine && !g.act;
+    const amber = inflight.has(a + d) || (A.phase === "starting" && mine) || (A.phase === "stopping" && (mine || A.pending === d)) ||
+                  A.pending === d;
+    el.classList.toggle("go", moving);
+    el.classList.toggle("busy", amber && !moving);
+    el.disabled = !g.started || g.mode !== "on" || !!g.act || sunBusy;
+    el.querySelector(".st").textContent = moving ? "moving" : (A.phase === "starting" && mine) ? "starting…" :
+      A.pending === d ? "queued" : (A.phase === "stopping" && mine) ? "stopping…" : "";
+    const r = A.refusal;
+    if (lastSeq[a] !== null && r.seq > lastSeq[a] && r.dir === d) { flash(a, d); toast(r.msg, true); }
+  }
+  for (const a of ["x", "y"]) lastSeq[a] = ax[a].refusal.seq;
+
+  // axis lines
+  $("axrows").innerHTML = ["x", "y"].map(a => {
+    const A = ax[a];
+    const st = !A.found ? "no reply" : A.state_name;
+    const cls = A.state === 2 ? "st-moving" : A.state === 0 ? "st-off" : "";
+    const over = A.current != null && Math.abs(A.current) > A.current_limit;
+    return `<tr><td><b style="color:var(--${a})">${a.toUpperCase()}</b> <span class="muted" style="font-size:13px">node ${A.node}</span></td>
+      <td class="ang">${deg(A.angle)}</td><td>${A.raw == null ? "–" : A.raw}</td>
+      <td style="${over ? "color:var(--stop);font-weight:700" : ""}">${amp(A.current)}</td>
+      <td class="${cls}">${esc(st)}</td><td>${A.temp == null ? "–" : A.temp + " °C"}</td></tr>
+      <tr class="msg"><td colspan="6" class="${A.msg_level}">${esc(A.msg || "")}${A.err && !(A.msg || "").includes(A.err_text) ? ` <span class="muted">· drive error ${esc(A.err_text)}</span>` : ""}</td></tr>`;
+  }).join("");
+
+  renderLive();                                                // always (next to the 3D view)
+  if (tab === "sun") { renderSun(); renderAuto(); }            // only the tab you are looking at is redrawn
+  if (tab === "sat") renderSat();
+  if (tab === "manual") renderBoard();
+  if (tab === "test") renderTest();
+  if (tab === "demod") renderDemod();
+  lockUi();
+
+  $("log").innerHTML = S.events.slice().reverse().map(e =>
+    `<div class="${e.level}"><span>${hm(e.t)}</span><span>${esc(e.msg)}</span></div>`).join("") || "<div><span></span><span>No events yet</span></div>";
+}
+
+function renderSun() {
+  const U = S.sun, P = U.prog, g = S.gimbal;
+  $("sunazel").textContent = `az ${U.az.toFixed(2)}°  ·  el ${U.el.toFixed(2)}°`;
+  $("site").textContent = `${U.site.lat.toFixed(5)}, ${U.site.lon.toFixed(5)} (${U.site.source})`;
+  $("sunaxes").innerHTML = U.axes ? `X ${deg(U.axes[0])}, Y ${deg(U.axes[1])} ${U.reachable_now ? "" : '<span style="color:var(--stop)">— beyond ±80°</span>'}` +
+     `<span class="muted small"> (yaw ${U.cal ? sg(U.cal.yaw, 2) + "°" : "0, unknown"})</span>` : '<span style="color:var(--stop)">not reachable</span>';
+  $("beam").textContent = S.pointing ? `az ${S.pointing.az.toFixed(2)}°, el ${S.pointing.el.toFixed(2)}° ${S.pointing.cal ? "" : "(yaw unknown)"}` : "–";
+  $("offset").textContent = `${U.offset.deg}° toward ${U.offset.toward}`;
+  $("offwarn").hidden = !!U.offset.confirmed;
+  $("offwarn").textContent = `Boresight offset direction "${U.offset.toward}" is NOT confirmed yet — check the dish and set BORESIGHT_OFFSET in config.py (then "confirmed": True).`;
+  $("advice").textContent = `${U.advice} Allowed now: ${U.window[0]}–${U.window[1]}° elevation.`;
+  const ch = U.checks || [];
+  $("checks").hidden = ch.length === 0 || U.busy;
+  $("checks").textContent = "Can't start: " + ch.join("; ");
+  $("heatlim").textContent = U.heat_limit_s.toFixed(0);
+
+  // methods
+  const m1 = $("lm1").querySelector("input");
+  m1.disabled = !!U.gnss_reason;
+  $("lm1").classList.toggle("off", !!U.gnss_reason);
+  $("m1why").textContent = U.gnss_reason ? `Unavailable: ${U.gnss_reason}.` : "Heading averaged 60 s (RTK FIXED only), ψ = heading − 90°, then peak-up.";
+  if (m1.disabled && m1.checked) document.querySelector('input[name="method"][value="blind"]').checked = true;
+  const peakOk = U.result && U.result.peak_ok;
+  $("sunstart").disabled = U.busy || ch.length > 0;
+  $("sunabort").disabled = !U.busy;
+  $("gtbtn").disabled = U.busy || !peakOk || ch.length > 0;
+  $("trackbtn").disabled = U.busy || !peakOk || ch.length > 0;
+  $("offbtn").disabled = U.busy || !g.started;
+
+  // progress
+  $("sunstep").textContent = P.state === "idle" ? "idle" : `${P.state === "running" ? "" : P.state.toUpperCase() + " · "}${P.step || ""}`;
+  $("sunbar").style.width = (P.pct || 0) + "%";
+  $("sunmsg").textContent = P.msg || "";
+  const h = P.heat;
+  $("heat").textContent = h && h.near ? `ON the Sun ${h.near_s.toFixed(0)} / ${h.limit_s.toFixed(0)} s` : (P.state === "running" ? "off the Sun" : "");
+  $("heat").className = "heat" + (h && h.near ? " hot" : "");
+  drawPlot(P.plot || {});
+  drawSky();
+
+  // result
+  const r = U.result, gt = U.gt;
+  const cells = [];
+  if (r) {
+    cells.push(["Method", r.method === "gnss" ? "1 · GNSS" : "2 · blind"]);
+    cells.push([`Yaw ψ (${r.psi_source || ""})`, r.psi != null ? sg(r.psi, 2) + "°" : "–"]);
+    if (r.psi_ref != null) cells.push(["ψ refined (peak)", sg(r.psi_ref, 2) + "°"]);
+    if (r.dX != null) { cells.push(["dX", sg(r.dX, 3) + "°"]); cells.push(["dY", sg(r.dY, 3) + "°"]); }
+    if (r.fwhm_x != null) cells.push(["FWHM X / Y", `${r.fwhm_x.toFixed(2)}° / ${r.fwhm_y.toFixed(2)}°`]);
+    if (r.rise_db != null) cells.push(["Peak rise", "+" + r.rise_db.toFixed(2) + " dB"]);
+    cells.push(["Valid", r.valid === false ? "NO (see warnings)" : r.peak_ok ? "yes" : "peak-up not done"]);
+  }
+  if (gt) {
+    cells.push(["Y-factor", gt.Y_db != null ? gt.Y_db.toFixed(2) + " dB" : "–"]);
+    cells.push(["G/T", gt.gt_db != null ? gt.gt_db.toFixed(2) + " dB/K" : "enter flux"]);
+    if (gt.L) cells.push(["L (θ = " + gt.fwhm_deg.toFixed(2) + "°)", gt.L.toFixed(4)]);
+  }
+  $("result").innerHTML = cells.length ? cells.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("") :
+    "<div><span>No result yet</span><b>–</b></div>";
+  const ws = (P.warnings || []).concat(gt && gt.valid === false ? ["G/T measurement marked INVALID"] : []);
+  $("warns").innerHTML = ws.map(w => `<li>${esc(w)}</li>`).join("");
+  $("logname").textContent = U.log ? `logs/${U.log}.json + .csv` : "";
+  if (document.activeElement !== $("flux") && U.flux_sfu != null && $("flux").value === "") $("flux").value = U.flux_sfu;
+}
+
+// power plot: pts [[x, dB]], fit [[x, dB]]
+function drawPlot(p) {
+  const svg = $("plot");
+  $("plottitle").textContent = p.title || "Power";
+  $("plotx").textContent = p.xlabel ? `x: ${p.xlabel} · y: dBFS` : "";
+  const pts = p.pts || [], fit = p.fit || [];
+  const all = pts.concat(fit);
+  if (!all.length) { svg.innerHTML = '<text x="300" y="115" text-anchor="middle" fill="#7D8B96" font-size="14">no data yet</text>'; return; }
+  let x0 = Math.min(...all.map(q => q[0])), x1 = Math.max(...all.map(q => q[0]));
+  let y0 = Math.min(...all.map(q => q[1])), y1 = Math.max(...all.map(q => q[1]));
+  if (x1 - x0 < 1e-6) { x0 -= 1; x1 += 1; } if (y1 - y0 < 0.5) { y0 -= 0.25; y1 += 0.25; }
+  const L = 46, Rt = 590, T = 10, B = 196;
+  const X = v => L + (v - x0) / (x1 - x0) * (Rt - L), Y = v => B - (v - y0) / (y1 - y0) * (B - T);
+  let h = `<rect x="${L}" y="${T}" width="${Rt - L}" height="${B - T}" fill="none" stroke="#CBD3DA"/>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * i / 4;
+    h += `<line x1="${L}" x2="${Rt}" y1="${Y(v)}" y2="${Y(v)}" stroke="#E2E7EB"/><text x="${L - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#4A5966">${v.toFixed(1)}</text>`;
+    const u = x0 + (x1 - x0) * i / 4;
+    h += `<text x="${X(u)}" y="214" text-anchor="middle" font-size="11" fill="#4A5966">${u.toFixed(Math.abs(x1 - x0) > 20 ? 0 : 2)}</text>`;
+  }
+  if (pts.length) h += `<polyline fill="none" stroke="#13202A" stroke-width="1.2" points="${pts.map(q => X(q[0]).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  if (pts.length < 120) h += pts.map(q => `<circle cx="${X(q[0]).toFixed(1)}" cy="${Y(q[1]).toFixed(1)}" r="2.2" fill="#13202A"/>`).join("");
+  if (fit.length) h += `<polyline fill="none" stroke="#E3A008" stroke-width="2.4" points="${fit.map(q => X(q[0]).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  svg.innerHTML = h;
+}
+
+// sky plot: polar, N up, E right; radius = 90 - el
+let gridKey = null, gridSvg = "";
+function skyXY(az, el) { const r = 100 * (90 - el) / 90, a = az * Math.PI / 180; return [r * Math.sin(a), -r * Math.cos(a)]; }
+function drawSky() {
+  const G = S.reach, U = S.sun;
+  const key = JSON.stringify(G.rows) + G.az_step;
+  if (key !== gridKey) {
+    gridKey = key; let h = "";
+    G.rows.forEach((row, i) => {
+      const e0 = i * G.el_step, e1 = e0 + G.el_step;
+      for (let j = 0; j < row.length; j++) {
+        if (row[j] === "1") continue;
+        const a0 = j * G.az_step, a1 = a0 + G.az_step;
+        const p = [skyXY(a0, e0), skyXY(a1, e0), skyXY(a1, e1), skyXY(a0, e1)];
+        h += `<path d="M${p[0]} A${100 * (90 - e0) / 90},${100 * (90 - e0) / 90} 0 0 1 ${p[1]} L${p[2]} A${100 * (90 - e1) / 90},${100 * (90 - e1) / 90} 0 0 0 ${p[3]} Z" fill="#DCE2E7"/>`;
+      }
+    });
+    gridSvg = h;
+  }
+  let h = `<circle r="100" fill="#F6F9FB" stroke="#CBD3DA"/>` + gridSvg;
+  for (const e of [30, 60]) h += `<circle r="${100 * (90 - e) / 90}" fill="none" stroke="#CBD3DA" stroke-dasharray="2 3"/>`;
+  h += `<text x="0" y="-102" text-anchor="middle" font-size="10" fill="#4A5966">N</text><text x="104" y="3" font-size="10" fill="#4A5966">E</text>` +
+       `<text x="0" y="110" text-anchor="middle" font-size="10" fill="#4A5966">S</text><text x="-110" y="3" font-size="10" fill="#4A5966">W</text>`;
+  const lo = U.window[0];
+  h += `<circle r="${100 * (90 - lo) / 90}" fill="none" stroke="#B7791F" stroke-width=".7"/>`;
+  if (U.path.length) h += `<polyline fill="none" stroke="#E3A008" stroke-width="1.2" stroke-dasharray="3 2" points="${U.path.map(p => skyXY(p[0], p[1]).join(",")).join(" ")}"/>`;
+  if (U.el > 0) { const [x, y] = skyXY(U.az, U.el); h += `<circle cx="${x}" cy="${y}" r="6" fill="#E3A008"/>`; }
+  if (S.pointing && S.pointing.el > 0) { const [x, y] = skyXY(S.pointing.az, S.pointing.el); h += `<circle cx="${x}" cy="${y}" r="4.5" fill="#fff" stroke="#2F5BD3" stroke-width="2"/>`; }
+  $("sky").innerHTML = h;
+  $("reachnote").textContent = `(±${S.limits[1]}°, offset ${U.offset.deg}° ${U.offset.toward}, yaw ${U.cal ? sg(U.cal.yaw, 1) + "°" : "0"})`;
+}
+
+// ------------------------------------------------------------- live power strip chart (Manual tab)
+const LIVE = { pts: [], win: 120, peak: null };          // pts: [t_ms, dB, sat]
+function liveAdd() {
+  const d = S && S.sdr && S.sdr.db;
+  const now = Date.now();
+  if (d != null) {
+    LIVE.pts.push([now, d, !!S.sdr.sat]);
+    if (LIVE.peak == null || d > LIVE.peak) LIVE.peak = d;
+  }
+  const keep = now - 600e3;                                  // keep 10 min max
+  while (LIVE.pts.length && LIVE.pts[0][0] < keep) LIVE.pts.shift();
+  liveDraw(now);
+}
+function liveDraw(now) {
+  const svg = $("liveplot"); if (!svg) return;
+  const pts = LIVE.pts.filter(p => p[0] >= now - LIVE.win * 1e3);
+  if (!pts.length) {
+    svg.innerHTML = '<text x="300" y="115" text-anchor="middle" fill="#7D8B96" font-size="14">no SDR data</text>';
+    $("livestats").textContent = S && S.sdr && !S.sdr.available ? "SDR " + (S.sdr.error || "missing") : "–";
+    return;
+  }
+  const ys = pts.map(p => p[1]);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (y1 - y0 < 1) { const m = (y0 + y1) / 2; y0 = m - 0.5; y1 = m + 0.5; }
+  const pad = (y1 - y0) * 0.08; y0 -= pad; y1 += pad;
+  const L = 46, Rt = 590, T = 10, B = 196;
+  const X = t => Rt - (now - t) / (LIVE.win * 1e3) * (Rt - L), Y = v => B - (v - y0) / (y1 - y0) * (B - T);
+  let h = `<rect x="${L}" y="${T}" width="${Rt - L}" height="${B - T}" fill="none" stroke="#CBD3DA"/>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * i / 4, s = LIVE.win * (1 - i / 4);
+    h += `<line x1="${L}" x2="${Rt}" y1="${Y(v)}" y2="${Y(v)}" stroke="#E2E7EB"/><text x="${L - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#4A5966">${v.toFixed(1)}</text>`;
+    h += `<text x="${L + (Rt - L) * i / 4}" y="214" text-anchor="middle" font-size="11" fill="#4A5966">${i === 4 ? "now" : "-" + Math.round(s)}</text>`;
+  }
+  if (LIVE.peak != null && LIVE.peak <= y1 && LIVE.peak >= y0)
+    h += `<line x1="${L}" x2="${Rt}" y1="${Y(LIVE.peak)}" y2="${Y(LIVE.peak)}" stroke="#E3A008" stroke-dasharray="4 3"/>`;
+  h += `<polyline fill="none" stroke="#13202A" stroke-width="1.4" points="${pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}"/>`;
+  h += pts.filter(p => p[2]).map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="2.5" fill="#D93025"/>`).join("");
+  svg.innerHTML = h;
+  const last = ys[ys.length - 1];
+  $("livestats").textContent = `now ${last.toFixed(2)} dBFS · min ${Math.min(...ys).toFixed(2)} · max ${Math.max(...ys).toFixed(2)} · peak hold ${LIVE.peak.toFixed(2)} · rise ${(last - Math.min(...ys)).toFixed(2)} dB`;
+}
+document.querySelectorAll("#livewin button").forEach(b => b.addEventListener("click", () => {
+  LIVE.win = +b.dataset.s;
+  document.querySelectorAll("#livewin button").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false"));
+  liveDraw(Date.now());
+}));
+$("liveclear").addEventListener("click", () => { LIVE.pts = []; LIVE.peak = null; liveDraw(Date.now()); });
+
+// ------------------------------------------------------------- board helpers
+const fAz = v => { const a = ((v % 360) + 360) % 360, t = a.toFixed(2); return t === "360.00" ? "0.00" : t; };
+const SKYBG = "#F6F9FB", INK = "#13202A", RULE = "#CBD3DA", SUBINK = "#4A5966";
+const COL = {x: "#2F5BD3", y: "#B5338A"};
+const polar = (cx, cy, rad, a) => [cx + rad * Math.sin(a * Math.PI / 180), cy - rad * Math.cos(a * Math.PI / 180)];
+const P2 = p => p[0].toFixed(1) + "," + p[1].toFixed(1);
+
+// ------------------------------------------------------------- history (angle chart, sky trail)
+const HIST = {pts: [], win: 120, trail: []};
+function histAdd() {
+  if (!S) return;
+  const ax = S.gimbal.axes, now = Date.now();
+  if (ax.x.angle == null || ax.y.angle == null) return;
+  const tg = S.pointing && S.pointing.target;
+  HIST.pts.push({t: now, x: ax.x.angle, y: ax.y.angle, tx: tg ? tg.x : null, ty: tg ? tg.y : null});
+  while (HIST.pts.length && HIST.pts[0].t < now - 600e3) HIST.pts.shift();
+  const p = S.pointing;
+  if (p && p.el >= 0) {
+    const l = HIST.trail[HIST.trail.length - 1];
+    if (!l || Math.hypot(l[0] - p.az, l[1] - p.el) > 0.4) { HIST.trail.push([p.az, p.el]); if (HIST.trail.length > 240) HIST.trail.shift(); }
+  }
+}
+
+// ------------------------------------------------------------- dials (the dish rotates with the axis)
+function dialSvg(k, cx, cy, R, A, tgt, lim) {
+  const col = COL[k], v = Math.max(-lim - 5, Math.min(lim + 5, A.angle == null ? 0 : A.angle));
+  const ends = k === "x" ? ["N", "S"] : ["W", "E"];
+  const arc = (a0, a1, rad) => `M${P2(polar(cx, cy, rad, a0))} A${rad},${rad} 0 0 1 ${P2(polar(cx, cy, rad, a1))}`;
+  let h = `<path d="${arc(-lim, lim, R)}" fill="none" stroke="${RULE}" stroke-width="14" stroke-linecap="butt"/>`;
+  h += `<path d="${arc(-lim, -lim + 10, R)}" fill="none" stroke="#F2C9C5" stroke-width="14"/><path d="${arc(lim - 10, lim, R)}" fill="none" stroke="#F2C9C5" stroke-width="14"/>`;
+  for (let a = -80; a <= 80; a += 20) {
+    const p0 = polar(cx, cy, R + 8, a), p1 = polar(cx, cy, R + 14, a), pt = polar(cx, cy, R + 27, a);
+    h += `<line x1="${p0[0]}" y1="${p0[1]}" x2="${p1[0]}" y2="${p1[1]}" stroke="${SUBINK}"/><text x="${pt[0]}" y="${pt[1] + 4}" text-anchor="middle" font-size="11" fill="${SUBINK}">${a}</text>`;
+  }
+  const el = polar(cx, cy, R + 4, -lim), er = polar(cx, cy, R + 4, lim);
+  h += `<text x="${el[0] - 22}" y="${el[1] + 30}" font-size="15" font-weight="700" fill="${col}">${ends[0]}</text><text x="${er[0] + 8}" y="${er[1] + 30}" font-size="15" font-weight="700" fill="${col}">${ends[1]}</text>`;
+  if (tgt != null) {
+    const t = Math.max(-lim, Math.min(lim, tgt)), p0 = polar(cx, cy, R - 14, t), p1 = polar(cx, cy, R + 10, t);
+    h += `<line x1="${p0[0]}" y1="${p0[1]}" x2="${p1[0]}" y2="${p1[1]}" stroke="#F2A900" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  const b = polar(cx, cy, R - 20, v);
+  h += `<line x1="${cx}" y1="${cy}" x2="${b[0]}" y2="${b[1]}" stroke="${INK}" stroke-width="1.5" stroke-dasharray="3 3" opacity=".55"/>`;
+  h += `<g transform="translate(${cx} ${cy}) rotate(${v})"><path d="M-30 -36 Q0 -4 30 -36" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round"/>` +
+       `<line x1="0" y1="-16" x2="0" y2="-62" stroke="${col}" stroke-width="2.5"/><circle cx="0" cy="-62" r="4" fill="${col}"/></g>`;
+  h += `<circle cx="${cx}" cy="${cy}" r="7" fill="${INK}"/>`;
+  h += `<text x="${cx}" y="${cy + 33}" text-anchor="middle" font-size="26" font-weight="700" font-family="var(--cond)" fill="${INK}">${k.toUpperCase()}  ${A.angle == null ? "–" : sg(A.angle, 2) + "°"}</text>`;
+  if (tgt != null) h += `<text x="${cx}" y="${cy + 51}" text-anchor="middle" font-size="13" fill="#8A5E00">target ${sg(tgt, 2)}°</text>`;
+  return h;
+}
+
+// ------------------------------------------------------------- sky board
+function skyBase() {
+  let h = `<circle r="100" fill="${SKYBG}" stroke="${RULE}"/>` + gridSvg;
+  for (const e of [30, 60]) h += `<circle r="${100 * (90 - e) / 90}" fill="none" stroke="${RULE}" stroke-dasharray="2 3"/>`;
+  h += `<line x1="0" y1="-100" x2="0" y2="100" stroke="${RULE}" stroke-width=".5"/><line x1="-100" y1="0" x2="100" y2="0" stroke="${RULE}" stroke-width=".5"/>`;
+  h += `<text x="0" y="-104" text-anchor="middle" font-size="10" font-weight="700" fill="${SUBINK}">N</text><text x="104" y="3" font-size="10" fill="${SUBINK}">E</text>` +
+       `<text x="0" y="112" text-anchor="middle" font-size="10" fill="${SUBINK}">S</text><text x="-110" y="3" font-size="10" fill="${SUBINK}">W</text>`;
+  return h;
+}
+const diamond = (x, y, r, fill) => `<path d="M${x} ${y - r} L${x + r} ${y} L${x} ${y + r} L${x - r} ${y} Z" fill="${fill}"/>`;
+function drawSky2() {
+  const U = S.sun, p = S.pointing, N = S.test.north;
+  let h = skyBase();
+  if (U.path.length) h += `<polyline fill="none" stroke="#E3A008" stroke-width="1.1" stroke-dasharray="3 2" points="${U.path.map(q => skyXY(q[0], q[1]).join(",")).join(" ")}"/>`;
+  if (U.el > 0) { const [x, y] = skyXY(U.az, U.el); h += `<circle cx="${x}" cy="${y}" r="6" fill="#E3A008"/>`; }
+  const [nx, ny] = skyXY(0, 45);
+  h += diamond(nx, ny, 5, "#1E8E4E") + `<text x="${nx + 8}" y="${ny + 3}" font-size="8" fill="#1E8E4E">N 45°</text>`;
+  if (HIST.trail.length > 1) h += `<polyline fill="none" stroke="#2F5BD3" stroke-opacity=".35" stroke-width="1.6" points="${HIST.trail.map(q => skyXY(q[0], Math.max(0, q[1])).join(",")).join(" ")}"/>`;
+  if (p && p.target && p.target.el >= 0) {
+    const [tx, ty] = skyXY(p.target.az, p.target.el);
+    if (p.el >= 0) { const [bx, by] = skyXY(p.az, p.el); h += `<line x1="${bx}" y1="${by}" x2="${tx}" y2="${ty}" stroke="#F2A900" stroke-dasharray="3 2"/>`; }
+    h += `<circle cx="${tx}" cy="${ty}" r="6" fill="#FFF2CC" stroke="#F2A900" stroke-width="2.4"/>`;
+  }
+  if (p && p.el >= 0) { const [x, y] = skyXY(p.az, p.el); h += `<circle cx="${x}" cy="${y}" r="5" fill="#fff" stroke="#2F5BD3" stroke-width="2.4"/>`; }
+  $("sky2").innerHTML = h;
+  $("skynote2").textContent = S.mount ? `yaw ψ ${sg(S.mount.yaw, 2)}° from ${S.mount.source}` : "mount yaw unknown (yaw 0)";
+  $("r-az").textContent = p ? fAz(p.az) + "°" : "–";
+  $("r-el").textContent = p ? p.el.toFixed(2) + "°" : "–";
+  $("r-yaw").textContent = S.mount ? sg(S.mount.yaw, 2) + "°" : "unknown";
+}
+
+// ------------------------------------------------------------- angle history chart
+function drawAngles() {
+  const svg = $("angplot"), now = Date.now(), win = HIST.win * 1e3;
+  const pts = HIST.pts.filter(q => q.t >= now - win);
+  if (pts.length < 2) { svg.innerHTML = '<text x="300" y="115" text-anchor="middle" fill="#7D8B96" font-size="14">collecting…</text>'; return; }
+  let vals = [];
+  for (const q of pts) { vals.push(q.x, q.y); if (q.tx != null) vals.push(q.tx, q.ty); }
+  let y0 = Math.min(...vals), y1 = Math.max(...vals);
+  if (y1 - y0 < 4) { const m = (y0 + y1) / 2; y0 = m - 2; y1 = m + 2; }
+  const pad = (y1 - y0) * .1; y0 -= pad; y1 += pad;
+  const L = 46, Rt = 590, T = 10, B = 196;
+  const X = t => Rt - (now - t) / win * (Rt - L), Y = v => B - (v - y0) / (y1 - y0) * (B - T);
+  let h = `<rect x="${L}" y="${T}" width="${Rt - L}" height="${B - T}" fill="none" stroke="${RULE}"/>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * i / 4;
+    h += `<line x1="${L}" x2="${Rt}" y1="${Y(v)}" y2="${Y(v)}" stroke="#E2E7EB"/><text x="${L - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="${SUBINK}">${v.toFixed(1)}</text>`;
+    h += `<text x="${L + (Rt - L) * i / 4}" y="214" text-anchor="middle" font-size="11" fill="${SUBINK}">${i === 4 ? "now" : "-" + Math.round(HIST.win * (1 - i / 4))}</text>`;
+  }
+  if (y0 < 0 && y1 > 0) h += `<line x1="${L}" x2="${Rt}" y1="${Y(0)}" y2="${Y(0)}" stroke="${SUBINK}" stroke-dasharray="1 3"/>`;
+  for (const k of ["x", "y"]) {
+    const tk = "t" + k;
+    const seg = pts.filter(q => q[tk] != null);
+    if (seg.length > 1) h += `<polyline fill="none" stroke="${COL[k]}" stroke-width="1.6" stroke-dasharray="5 4" opacity=".7" points="${seg.map(q => X(q.t).toFixed(1) + "," + Y(q[tk]).toFixed(1)).join(" ")}"/>`;
+    h += `<polyline fill="none" stroke="${COL[k]}" stroke-width="2" points="${pts.map(q => X(q.t).toFixed(1) + "," + Y(q[k]).toFixed(1)).join(" ")}"/>`;
+  }
+  svg.innerHTML = h;
+}
+document.querySelectorAll("#angwin button").forEach(b => b.addEventListener("click", () => {
+  HIST.win = +b.dataset.s;
+  document.querySelectorAll("#angwin button").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false"));
+  if (S) drawAngles();
+}));
+
+// ------------------------------------------------------------- motor current / temperature bars
+function renderCur() {
+  const ax = S.gimbal.axes;
+  $("cur").innerHTML = ["x", "y"].map(k => {
+    const A = ax[k], I = A.current == null ? null : Math.abs(A.current), lim = A.current_limit, f = I == null ? 0 : Math.min(1, I / lim);
+    const colr = f > 1 ? "var(--stop)" : f > .8 ? "var(--amber)" : COL[k];
+    return `<div class="curbar"><b style="color:${COL[k]}">${k.toUpperCase()}</b><div class="trk"><i style="width:${(f * 100).toFixed(1)}%;background:${colr}"></i><u style="left:80%"></u></div>` +
+      `<span>${I == null ? "–" : I.toFixed(1)} / ${lim.toFixed(0)} A · ${A.temp == null ? "–" : A.temp + " °C"} · ${esc(!A.found ? "no reply" : A.state_name)}</span></div>`;
+  }).join("");
+}
+
+// ------------------------------------------------------------- go to angle
+const GO = {mode: "xy", d0: null, key: null};
+try { GO.mode = localStorage.getItem("gs-gomode") || "xy"; } catch (e) {}
+function setGoMode(m) {
+  GO.mode = m;
+  $("go-xy").hidden = m !== "xy"; $("go-azel").hidden = m !== "azel";
+  document.querySelectorAll("#gomode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m));
+  try { localStorage.setItem("gs-gomode", m); } catch (e) {}
+}
+document.querySelectorAll("#gomode button").forEach(b => b.onclick = () => setGoMode(b.dataset.m));
+setGoMode(GO.mode);
+function goVals() {
+  const ids = GO.mode === "xy" ? ["gx", "gy"] : ["gaz", "gel"];
+  const lo = GO.mode === "xy" ? [-80, -80] : [0, 0], hi = GO.mode === "xy" ? [80, 80] : [360, 90];
+  let ok = true; const v = [];
+  ids.forEach((id, i) => {
+    const el = $(id), n = el.value.trim() === "" ? NaN : +el.value, bad = !(n >= lo[i] && n <= hi[i]);
+    el.parentElement.classList.toggle("bad", bad && el.value !== "");
+    if (bad) ok = false; v.push(n);
+  });
+  return {ok, v};
+}
+["gx", "gy", "gaz", "gel"].forEach(id => {
+  $(id).addEventListener("input", goVals);
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("gogo").click(); } });
+});
+$("gogo").onclick = async () => {
+  const {ok, v} = goVals();
+  if (!ok) { toast(GO.mode === "xy" ? "Enter X and Y between −80° and +80°" : "Enter azimuth 0–360° and elevation 0–90°", true); return; }
+  const j = await cmd(GO.mode === "xy" ? {cmd: "goto", x: v[0], y: v[1]} : {cmd: "goto_azel", az: v[0], el: v[1]});
+  if (j.ok) { GO.d0 = null; toast(GO.mode === "xy" ? `Moving to X ${sg(v[0], 2)}°, Y ${sg(v[1], 2)}°…` : `Moving to az ${v[0].toFixed(1)}°, el ${v[1].toFixed(1)}°…`); }
+};
+$("gohome").onclick = async () => { const j = await cmd({cmd: "goto", x: 0, y: 0}); if (j.ok) { GO.d0 = null; toast("Moving to HOME (X 0, Y 0)…"); } };
+$("gonorth").onclick = async () => { const j = await cmd({cmd: "goto_azel", az: 0, el: 45}); if (j.ok) { GO.d0 = null; toast("Moving to true north, 45° up…"); } };
+
+function renderBoard() {
+  const g = S.gimbal, ax = g.axes, lim = S.limits[1];
+  const tg = S.pointing && S.pointing.target;
+  $("dials").innerHTML = dialSvg("x", 140, 150, 105, ax.x, tg ? tg.x : null, lim) + dialSvg("y", 420, 150, 105, ax.y, tg ? tg.y : null, lim);
+  drawSky2(); drawAngles(); renderCur();
+  const idle = ["x", "y"].every(k => ["idle", "auto"].includes(ax[k].phase));
+  const can = g.mode === "on" && g.started && idle && !S.sun.busy && S.test.state !== "running";
+  $("gogo").disabled = !can; $("gohome").disabled = !can; $("gonorth").disabled = !can || !S.mount;
+  $("gonorth").title = S.mount ? "True north, 45° up" : "Needs the mount yaw: run Test (GNSS) or a Sun find first";
+  let note, cls = "note";
+  if (S.test.state === "running") note = "The test is running.";
+  else if (!g.started) note = "Press Start first: both motors must be ON and holding.";
+  else if (g.act) note = `Moving: <b>${esc(g.act.label)}</b>${g.act.clipped ? " — " + esc(g.act.msg) : ""}`;
+  else if (GO.mode === "azel" && !S.mount) { note = "Mount yaw is unknown: azimuth is relative to the mount (yaw 0), not true north. Run <b>Test</b> to get true north from the GNSS heading."; cls = "note warn"; }
+  else note = GO.mode === "xy" ? "X tilts the dish N ↔ S, Y tilts it W ↔ E, both measured from HOME (±80° soft limits). Space / Esc stops." :
+    `Sky angles use the mount yaw ψ ${sg(S.mount.yaw, 2)}° (${esc(S.mount.source)}) and the ${S.offset.deg}° boresight offset. Space / Esc stops.`;
+  $("gonote").className = cls; $("gonote").innerHTML = note;
+  // progress of a goto
+  if (g.act && g.act.target && g.act.kind === "goto" && ax.x.angle != null) {
+    const key = g.act.label + g.act.target.join(","), dist = Math.hypot(g.act.target[0] - ax.x.angle, g.act.target[1] - ax.y.angle);
+    if (GO.key !== key || GO.d0 == null) { GO.key = key; GO.d0 = Math.max(dist, 0.01); }
+    const pct = Math.max(0, Math.min(100, 100 * (1 - dist / GO.d0)));
+    $("goprog").hidden = false; $("gobar").style.width = pct.toFixed(0) + "%";
+    $("gotxt").textContent = `${dist.toFixed(2)}° to go`;
+  } else { $("goprog").hidden = true; GO.d0 = null; }
+}
+
+// ------------------------------------------------------------- Test mode
+let testHtml = "";
+const ICON = {pending: n => n, running: n => n, pass: () => "✓", warn: () => "!", fail: () => "✕", skip: () => "–"};
+function sparkline(pts, w, h) {
+  if (!pts || pts.length < 2) return `<svg class="mini" viewBox="0 0 ${w} ${h}"></svg>`;
+  let y0 = Math.min(...pts), y1 = Math.max(...pts); if (y1 - y0 < 0.5) { const m = (y0 + y1) / 2; y0 = m - .25; y1 = m + .25; }
+  const X = i => 6 + i / (pts.length - 1) * (w - 12), Y = v => h - 8 - (v - y0) / (y1 - y0) * (h - 16);
+  return `<svg class="mini" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${INK}" stroke-width="1.5" points="${pts.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ")}"/>` +
+         `<text x="8" y="12" font-size="10" fill="${SUBINK}">${y1.toFixed(1)} dBFS</text><text x="8" y="${h - 2}" font-size="10" fill="${SUBINK}">${y0.toFixed(1)}</text></svg>`;
+}
+const kv = (k, v) => `<div><span>${esc(k)}</span><b>${v}</b></div>`;
+function gnssChart(hist) {
+  const w = 420, h = 150, L = 30, Rt = w - 8, T = 8, B = h - 22;
+  if (!hist || hist.length < 2) return `<svg class="mini" viewBox="0 0 ${w} ${h}"><text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="12" fill="#7D8B96">waiting for the receiver…</text></svg>`;
+  const tmax = Math.max(hist[hist.length - 1][0], 10), smax = Math.max(12, ...hist.map(q => q[1])) + 2;
+  const X = t => L + t / tmax * (Rt - L), Y = s => B - s / smax * (B - T);
+  const bg = ["#EEF0F2", "#F9DAD7", "#FFF2CC", "#FFE5A8", "#C9E9D4"];
+  let s = `<svg class="mini" viewBox="0 0 ${w} ${h}">`;
+  for (let i = 0; i < hist.length - 1; i++) s += `<rect x="${X(hist[i][0]).toFixed(1)}" y="${T}" width="${(X(hist[i + 1][0]) - X(hist[i][0]) + 0.6).toFixed(1)}" height="${B - T}" fill="${bg[hist[i][2]]}"/>`;
+  for (let i = 0; i <= 3; i++) { const v = Math.round(smax * i / 3); s += `<line x1="${L}" x2="${Rt}" y1="${Y(v)}" y2="${Y(v)}" stroke="#fff" stroke-opacity=".8"/><text x="${L - 4}" y="${Y(v) + 3}" text-anchor="end" font-size="9" fill="${SUBINK}">${v}</text>`; }
+  s += `<polyline fill="none" stroke="${INK}" stroke-width="1.8" points="${hist.map(q => X(q[0]).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  s += `<text x="${L}" y="${h - 6}" font-size="9" fill="${SUBINK}">0 s</text><text x="${Rt}" y="${h - 6}" text-anchor="end" font-size="9" fill="${SUBINK}">${tmax.toFixed(0)} s · satellites in view/used</text></svg>`;
+  return s;
+}
+function miniSky(tgt, res) {
+  let h = `<svg class="mini" viewBox="-114 -114 228 228" style="max-width:230px">` + skyBase();
+  if (tgt) { const [x, y] = skyXY(tgt.az, tgt.el); h += `<circle cx="${x}" cy="${y}" r="7" fill="#FFF2CC" stroke="#F2A900" stroke-width="2.4"/>`; }
+  if (res) { const [x, y] = skyXY(res.az, res.el); h += `<circle cx="${x}" cy="${y}" r="4.5" fill="#fff" stroke="#2F5BD3" stroke-width="2.4"/>`; }
+  return h + "</svg>";
+}
+function stepViz(s) {
+  const d = s.data || {};
+  if (s.id === "link" && d.relay !== undefined)
+    return `<div class="kvs">${kv("Link", esc(d.relay || "–"))}${kv("Connected", d.connected ? "yes" : "no")}${kv("Bus", d.bus_v ? d.bus_v.toFixed(1) + " V" : "–")}${kv("Drive X", d.x_found ? "answers" : "no reply")}${kv("Drive Y", d.y_found ? "answers" : "no reply")}</div>`;
+  if (s.id === "motors") {
+    const rows = d.rows || [];
+    let t = "";
+    if (rows.length) t = `<div class="tablewrap"><table class="mt"><thead><tr><th>Axis</th><th>Move</th><th>Target</th><th>Reached</th><th>Error</th><th>Peak I</th><th>Time</th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td><b style="color:${COL[r.axis] || INK}">${r.axis.toUpperCase()}</b></td><td>${esc(r.label)}</td><td>${sg(r.target, 1)}°</td><td>${r.reached == null ? "–" : sg(r.reached, 2) + "°"}</td>` +
+        `<td class="${r.err != null && Math.abs(r.err) > 0.15 ? "bad" : ""}">${r.err == null ? "–" : sg(r.err, 3) + "°"}</td><td>${r.peak_a == null ? "–" : r.peak_a.toFixed(1) + " A"}</td><td>${r.secs} s</td></tr>`).join("") + `</tbody></table></div>`;
+    return t;
+  }
+  if (s.id === "sdr" && (d.points || []).length)
+    return `<div class="viz">${sparkline(d.points, 300, 90)}<div class="kvs">${d.n ? kv("Readings", `${d.n} (${d.rate_hz}/s)`) + kv("Mean", d.mean_db + " dBFS") + kv("Min / Max", `${d.min_db} / ${d.max_db}`) +
+      kv("Noise σ", d.std_db + " dB") + kv("Gain", (d.gain_db != null ? d.gain_db.toFixed(0) : "–") + " dB") + kv("Peak |x|", d.peak + " FS") + kv("Saturated", d.sat ? `<span style="color:var(--stop)">${d.sat}</span>` : "none") : ""}</div></div>`;
+  if (s.id === "gnss" && (d.hist || []).length) {
+    const st = d.stage || 0, names = ["Receiver", "3D fix", "RTK float", "RTK FIXED"];
+    const lad = names.map((n, i) => `<span class="${st > i ? "done" : st === i ? "now" + (i === 3 ? " fixed" : "") : ""}">${n}${st > i ? " ✓" : ""}</span>`).join("");
+    return `<div class="ladder">${lad}</div><div class="viz">${gnssChart(d.hist)}<div class="kvs">${kv("Satellites", d.num_sv == null ? "–" : d.num_sv)}${kv("State", esc(d.stage_name || "–"))}${kv("Accuracy", d.h_acc_m != null ? d.h_acc_m.toFixed(2) + " m" : "–")}` +
+      `${kv("Baseline", d.length_cm != null ? d.length_cm.toFixed(1) + " cm" : "–")}${d.heading != null ? kv("Heading", d.heading.toFixed(2) + "°") + kv("Mount yaw ψ", sg(d.psi, 2) + "°") + kv("Headings avg", d.n) : ""}${d.lat != null ? kv("Position", d.lat.toFixed(5) + ", " + d.lon.toFixed(5)) : ""}</div></div>`;
+  }
+  if (s.id === "north" && (d.target || d.az != null)) {
+    const t = d.target;
+    return `<div class="viz">${miniSky(t ? {az: t.az, el: t.el} : null, d.az != null ? {az: d.az, el: d.el} : null)}<div class="kvs">` +
+      (t ? kv("Target", `az ${fAz(t.az)}° · el ${t.el.toFixed(0)}°`) + kv("Axes needed", `X ${sg(t.x, 1)}°, Y ${sg(t.y, 1)}°`) : "") +
+      (d.az != null ? kv("Beam now", `az ${fAz(d.az)}° · el ${d.el.toFixed(2)}°`) + kv("Axes", `X ${sg(d.x, 2)}°, Y ${sg(d.y, 2)}°`) + kv("Error", d.err_deg.toFixed(2) + "°") + kv("Move time", d.secs + " s") : "") + `</div></div>`;
+  }
+  return "";
+}
+
+// ------------------------------------------------------------- confirm dialog (anything that starts the motors)
+let pendingGo = null;
+function confirmThen(title, text, goLabel, fn, extra) {
+  $("tmtitle").textContent = title; $("tmtext").textContent = text; $("tmest").textContent = extra || "";
+  $("tgo").textContent = goLabel;
+  ["tc1", "tc2", "tc3"].forEach(id => $(id).checked = false);
+  $("tgo").disabled = true; pendingGo = fn;
+  $("tmodal").classList.add("on");
+}
+["tc1", "tc2", "tc3"].forEach(id => $(id).onchange = () => { $("tgo").disabled = !["tc1", "tc2", "tc3"].every(i => $(i).checked); });
+$("tcancel").onclick = () => { pendingGo = null; $("tmodal").classList.remove("on"); };
+$("tgo").onclick = async () => { $("tmodal").classList.remove("on"); const f = pendingGo; pendingGo = null; if (f) await f(); };
+
+// ------------------------------------------------------------- live view: readouts next to the 3D model
+function barSet(id, v) {
+  const el = $(id), a = Math.max(-80, Math.min(80, v == null ? 0 : v)), w = Math.abs(a) / 160 * 100;
+  el.style.left = (a >= 0 ? 50 : 50 - w) + "%"; el.style.width = w + "%";
+}
+function activity() {
+  const g = S.gimbal, T = S.test, U = S.sun, A = S.sat;
+  if (A && A.busy) return [true, "Satellite: " + (A.step || "starting"), (A.sat ? A.sat + " · " : "") + (A.msg || "")];
+  if (U.busy) return [true, "Sun: " + (U.prog.step || "starting"), U.prog.msg || ""];
+  if (T.state === "running") { const c = T.steps.find(s => s.id === T.current); return [true, "Testing: " + (c ? c.title : "…"), c ? c.detail : ""]; }
+  if (S.demod && S.demod.busy) return [true, "Demodulating", ""];
+  if (g.act) return [true, "Moving: " + g.act.label, g.act.msg || ""];
+  const m = {offline: "Gimbal not connected", ready: "Ready: press Start (Manual tab)", on: g.started ? "Idle: motors holding" : "Idle",
+             starting: "Starting the motors…", homing: "Going home…", fault: "FAULT: " + (g.fault || "")}[g.mode] || g.mode;
+  return [false, m, ""];
+}
+function renderLive() {
+  const g = S.gimbal, ax = g.axes, C = S.components, P = S.pointing;
+  const [busy, act, sub] = activity();
+  $("lv-act").textContent = act; $("lv-act").classList.toggle("busy", busy); $("lv-sub").textContent = sub;
+  $("lv-x").textContent = deg(ax.x.angle); $("lv-y").textContent = deg(ax.y.angle);
+  barSet("lv-xb", ax.x.angle); barSet("lv-yb", ax.y.angle);
+  $("lv-az").textContent = P ? P.az.toFixed(1) + "°" : "–";
+  $("lv-el").textContent = P ? P.el.toFixed(1) + "°" : "–";
+  $("lv-yaw").textContent = S.mount ? "yes · ψ " + sg(S.mount.yaw, 1) + "°" : "not yet";
+  $("lv-dets").innerHTML = [["gimbal", "Gimbal"], ["gnss", "GNSS"], ["sdr", "SDR"], ["internet", "Internet"]].map(([k, n]) =>
+    `<span class="det ${C[k].found ? "ok" : "no"}" title="${esc(C[k].detail)}">${C[k].found ? "✓" : "✕"} ${n}</span>`).join("");
+}
+
+// ------------------------------------------------------------- narration lists (Sun Auto, Satellite)
+function narr(id, prog, placeholder) {
+  const ol = $(id), L = (prog && prog.log) || [];
+  const key = L.length + ":" + (L.length ? L[L.length - 1].msg : "");
+  if (ol.dataset.k === key) return;
+  ol.dataset.k = key;
+  if (!L.length) { ol.className = "narr empty"; ol.innerHTML = `<li style="display:block;border:0;background:none;font-weight:400">${placeholder}</li>`; return; }
+  const bottom = ol.scrollHeight - ol.scrollTop - ol.clientHeight < 40;
+  ol.className = "narr";
+  ol.innerHTML = L.map(l => `<li class="${l.level}"><span class="t">${hm(l.t)}</span><span>${esc(l.msg)}</span></li>`).join("");
+  if (bottom) ol.scrollTop = ol.scrollHeight;
+}
+
+// ------------------------------------------------------------- Sun: one-button Auto
+function renderAuto() {
+  const U = S.sun, P = U.prog, C = S.components, run = U.busy, why = U.checks_auto || [];
+  const chip2 = (ok, label, tip) => `<span class="det ${ok ? "ok" : "no"}" title="${esc(tip || "")}">${ok ? "✓" : "–"} ${label}</span>`;
+  const mode = C.gnss.found && C.sdr.found ? "GNSS north, then peak-up on the Sun with the SDR" :
+               C.gnss.found ? "GNSS north, then follow the predicted Sun (no SDR: no peak-up)" :
+               C.sdr.found ? "no GNSS: blind elevation-ring search with the SDR" : "cannot find north (needs the GNSS or the SDR)";
+  const needs = chip2(C.gimbal.found, "Gimbal", C.gimbal.detail) + chip2(C.gnss.found, "GNSS (finds north)", C.gnss.detail) +
+    chip2(C.sdr.found, "SDR (fine-tunes, optional)", C.sdr.detail) + chip2(U.el >= U.window[0] && U.el <= U.window[1], `Sun ${U.el.toFixed(0)}° up`, `allowed ${U.window[0]}–${U.window[1]}°`) +
+    `<span class="muted small" style="align-self:center">Mode: ${mode}</span>`;
+  if ($("sunneeds").dataset.k !== needs) { $("sunneeds").dataset.k = needs; $("sunneeds").innerHTML = needs; }
+  $("sunwhy").hidden = run || !why.length; $("sunwhy").textContent = "Can't start: " + why.join("; ");
+  $("sunauto").disabled = run || why.length > 0 || S.test.state === "running" || !!(S.sat && S.sat.busy) || (S.demod && S.demod.uses_sdr);
+  $("sunautostop").disabled = !run;
+  $("autopill").className = "pill " + P.state; $("autopill").textContent = P.state === "idle" ? "idle" : P.state;
+  $("autostep").textContent = P.state === "idle" ? "" : (P.step || "");
+  $("autobar").style.width = (P.pct || 0) + "%";
+  const h = P.heat;
+  $("autoheat").textContent = h && h.near ? `on the Sun ${h.near_s.toFixed(0)} / ${h.limit_s.toFixed(0)} s` : "";
+  $("autoheat").className = "heat" + (h && h.near ? " hot" : "");
+  $("heatlim2").textContent = U.heat_limit_s.toFixed(0);
+  narr("sunnarr", P, "Nothing running. Press <b>Track the Sun</b>.");
+}
+$("sunauto").onclick = () => confirmThen("Start the motors and track the Sun?",
+  "Auto starts the motors (they switch off for a moment during Start), points the dish at the Sun and follows it. After the LNB heat limit the dish moves 10° off by itself.",
+  "Track the Sun", async () => { const j = await cmd({cmd: "sun_auto", confirm: true}); if (j.ok) toast("Sun Auto started"); });
+$("sunautostop").onclick = () => stopAll("Stop button");
+
+// ------------------------------------------------------------- Satellite
+let satSel = null, satOpts = "";
+const tm = iso => new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
+function polarBase() {
+  let h = "";
+  for (const el of [0, 30, 60]) h += `<circle r="${100 * (90 - el) / 90}" fill="${el === 0 ? SKYBG : "none"}" stroke="${RULE}"/>` +
+    (el ? `<text x="3" y="${-100 * (90 - el) / 90 + 11}" font-size="8" fill="${SUBINK}">${el}°</text>` : "");
+  h += `<line x1="-100" x2="100" y1="0" y2="0" stroke="${RULE}"/><line y1="-100" y2="100" x1="0" x2="0" stroke="${RULE}"/>`;
+  for (const [t, a] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) { const [x, y] = skyXY(a, -9); h += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${t === "N" ? "#D23B2F" : SUBINK}">${t}</text>`; }
+  return h;
+}
+function satPlot(p, A) {
+  let h = polarBase(), title = "";
+  if (A.busy && A.track && A.track.length) {
+    h += `<polyline fill="none" stroke="#1b6ef3" stroke-width="2.5" points="${A.track.map(q => skyXY(q[0], q[1]).map(v => v.toFixed(1)).join(",")).join(" ")}"/>`;
+    if (A.az != null) { const [x, y] = skyXY(A.az, A.el); h += `<circle cx="${x}" cy="${y}" r="6" fill="#1b6ef3" stroke="#fff" stroke-width="2"/>`; }
+    title = "· " + (A.pass ? A.pass.name : "");
+  } else if (p && p.sky) {
+    let seg = [], okc = null;
+    const flush = () => { if (seg.length > 1) h += `<polyline fill="none" stroke="${okc ? "#1b6ef3" : "#9aa7b3"}" stroke-width="${okc ? 2.5 : 1.5}" ${okc ? "" : 'stroke-dasharray="4 3"'} points="${seg.join(" ")}"/>`; };
+    p.sky.forEach((q, i) => {
+      const pt = skyXY(q[0], q[1]).map(v => v.toFixed(1)).join(",");
+      if (okc !== null && !!q[2] !== okc) { seg.push(pt); flush(); seg = []; }
+      okc = !!q[2]; seg.push(pt);
+    });
+    flush();
+    const f = skyXY(p.sky[0][0], p.sky[0][1]), l = skyXY(p.sky[p.sky.length - 1][0], p.sky[p.sky.length - 1][1]);
+    h += `<circle cx="${f[0]}" cy="${f[1]}" r="5" fill="#1E8E4E" stroke="#fff" stroke-width="1.5"/><circle cx="${l[0]}" cy="${l[1]}" r="5" fill="#D92B1E" stroke="#fff" stroke-width="1.5"/>`;
+    title = `· ${p.name} ${tm(p.rise)}`;
+  } else h += `<text y="4" text-anchor="middle" font-size="11" fill="${SUBINK}">pick a pass</text>`;
+  if (S.sun.el > 0) { const [x, y] = skyXY(S.sun.az, S.sun.el); h += `<circle cx="${x}" cy="${y}" r="5" fill="#ffb703" stroke="#fff" stroke-width="1.5"/>`; }
+  $("satsky").innerHTML = h; $("satskyt").textContent = title;
+}
+function renderSat() {
+  const A = S.sat, C = S.components, run = A.busy;
+  const opts = '<option value="">Auto: next trackable pass</option>' + (A.targets || []).map(t => `<option value="${t.catnr}">${esc(t.name)} (${t.catnr})</option>`).join("");
+  if (opts !== satOpts) { const v = $("satsel").value; $("satsel").innerHTML = opts; $("satsel").value = v; satOpts = opts; }
+  const reasons = [];
+  if (!C.gimbal.found) reasons.push("gimbal not detected");
+  if (!C.gnss.found && !S.mount) reasons.push("true north unknown: connect the GNSS, or run the Sun or Test north step first");
+  if (A.state === "unavailable") reasons.push(A.msg);
+  $("satwhy").hidden = run || !reasons.length; $("satwhy").textContent = "Can't start: " + reasons.join("; ");
+  $("satgo").disabled = run || reasons.length > 0 || S.sun.busy || S.test.state === "running";
+  $("satstop").disabled = !run;
+  $("satpill").className = "pill " + A.state; $("satpill").textContent = A.state;
+  $("satstep").textContent = A.state === "idle" ? "" : (A.step || "");
+  $("satlive").textContent = A.az != null && run ? `satellite now az ${A.az.toFixed(1)}° · el ${A.el.toFixed(1)}°` : "";
+  narr("satnarr", A, "Nothing running. Press <b>Track</b>.");
+  $("satnote").textContent = A.note || (A.passes[0] && A.passes[0].approx ? "reachability is approximate until north is known" : "");
+  const want = $("satsel").value;
+  const list = (A.passes || []).filter(p => !want || String(p.catnr) === want);
+  const auto = list.find(p => p.reachable);
+  const key = p => p.catnr + "|" + p.rise;
+  const shown = list.find(p => key(p) === satSel) || auto || list[0];
+  const rows = list.map(p => {
+    const tag = !p.reachable ? `<span class="tag bad" title="${esc(p.why)}">no</span>` : p.frac >= 0.98 ? '<span class="tag ok">full pass</span>' :
+      `<span class="tag part" title="${esc(p.why)}">${Math.round(p.frac * 100)}% of it</span>`;
+    return `<tr class="pk ${p.reachable ? "" : "no"} ${shown && key(p) === key(shown) ? "sel" : ""}" data-k="${esc(key(p))}"><td>${tm(p.rise)}–${tm(p.set)} ${p.now ? '<span class="tag now">now</span>' : ""}</td>` +
+      `<td><b>${esc(p.name)}</b>${p === auto && !want ? ' <span class="tag ok">auto picks this</span>' : ""}</td><td>${p.max_el.toFixed(0)}°</td><td>${tag}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="muted">${A.note ? esc(A.note) : "no passes in the next 24 h (still predicting?)"}</td></tr>`;
+  if ($("satrows").dataset.k !== rows) { $("satrows").dataset.k = rows; $("satrows").innerHTML = rows; }
+  satPlot(shown, A);
+}
+$("satrows").onclick = e => { const tr = e.target.closest("tr.pk"); if (tr) { satSel = tr.dataset.k; const c = satSel.split("|")[0]; $("satsel").value = c; $("satrows").dataset.k = ""; renderSat(); } };
+$("satsel").onchange = () => { satSel = null; $("satrows").dataset.k = ""; if (S) renderSat(); };
+$("satgo").onclick = () => confirmThen("Start the motors and track a satellite?",
+  "Tracking starts the motors (they switch off for a moment during Start), slews to the rise point and follows the pass, then returns home.",
+  "Track", async () => { const j = await cmd({cmd: "sat_start", confirm: true, catnr: $("satsel").value || null}); if (j.ok) toast("Satellite tracking started"); });
+$("satstop").onclick = () => stopAll("Stop button");
+$("satrefresh").onclick = async () => { const j = await cmd({cmd: "sat_refresh"}); if (j.ok) toast("Predicting passes…"); };
+$("satadd-btn").onclick = async () => {
+  const n = $("satadd").value; if (!n) return;
+  toast("Asking CelesTrak for " + n + "…");
+  const j = await cmd({cmd: "sat_add", catnr: +n});
+  if (j.ok) { toast("Added " + j.result); $("satadd").value = ""; }
+};
+
+// ------------------------------------------------------------- Test: one card per component, run any of them alone
+const TEST_META = {
+  link:   {comp: ["gimbal"], moves: false, what: "The Pi relay / CAN link answers and both drives are found. Nothing moves."},
+  motors: {comp: ["gimbal"], moves: true,  what: "Starts the motors, moves each axis ±5° and back to HOME; checks position error and current."},
+  sdr:    {comp: ["sdr"],    moves: false, what: "Reads the SDR for a few seconds: reading rate, level, saturation. Receive only."},
+  gnss:   {comp: ["gnss"],   moves: false, what: "Follows the receiver up to RTK FIXED and measures the heading (true north)."},
+  north:  {comp: ["gimbal", "gnss"], moves: true, what: "Uses the GNSS heading and points the beam at true north, 45° up."},
+};
+const COMPNAME = {gimbal: "Gimbal", gnss: "GNSS", sdr: "SDR"};
+function renderTest() {
+  const T = S.test, running = T.state === "running", C = S.components;
+  const avail = id => TEST_META[id].comp.every(k => C[k].found);
+  const other = S.sun.busy || (S.sat && S.sat.busy) || (S.demod && S.demod.uses_sdr);
+  $("testall").disabled = running || other || !Object.keys(TEST_META).some(avail);
+  $("testabort").disabled = !running;
+  const sm = $("tsummary");
+  if (T.state === "idle") sm.className = "tsummary";
+  else {
+    sm.className = "tsummary on " + T.state;
+    const cur = T.steps.find(s => s.id === T.current);
+    sm.innerHTML = (running ? `Running: ${esc(cur ? cur.title : "…")}` : T.state === "done" ? "✓ " + esc(T.msg) : T.state === "failed" ? "✕ " + esc(T.msg) : "■ " + esc(T.msg)) +
+      `<small>${T.t0 ? "started " + hm(T.t0) : ""}${T.t1 ? " · finished " + hm(T.t1) : ""}</small>`;
+  }
+  const html = T.steps.map((s, i) => {
+    const m = TEST_META[s.id], ok = avail(s.id), st = s.state === "idle" ? "" : s.state;
+    const miss = m.comp.filter(k => !C[k].found);
+    const who = ok ? "✓ " + m.comp.map(k => COMPNAME[k] + ": " + esc(C[k].detail)).join(" · ")
+                   : "✕ not detected: " + miss.map(k => COMPNAME[k] + " (" + esc(C[k].detail) + ")").join(", ");
+    const done = ["pass", "warn", "fail"].includes(s.state);
+    return `<div class="cc ${st} ${ok ? "" : "missing"}"><div class="hd"><span class="ic">${st ? ICON[st](i + 1) : i + 1}</span>` +
+      `<div><h3>${esc(s.title)}</h3><div class="who ${ok ? "ok" : ""}">${who}</div></div></div>` +
+      `<div class="muted small">${m.what} ${m.moves ? '<span class="mv">moves the dish</span>' : ""}</div>` +
+      `<div class="det2">${esc(s.detail || (s.state === "pending" ? "waiting…" : ""))}</div>${stepViz(s)}` +
+      `<div class="runrow"><button class="btn" data-run="${s.id}" ${!ok || running || other ? "disabled" : ""}>${done ? "Run again" : "Run"}</button></div></div>`;
+  }).join("");
+  if (html !== testHtml) { testHtml = html; $("comps").innerHTML = html; }
+}
+function runTests(only) {
+  const moves = only.some(i => TEST_META[i].moves);
+  const go = async () => { const j = await cmd({cmd: "test_start", only, confirm: moves}); if (j.ok) { testHtml = ""; toast("Started"); } };
+  if (!moves) return go();
+  const e = S && S.test.estimate;
+  confirmThen("The dish WILL move",
+    "This check starts the motors if they are off and moves the dish" + (only.includes("north") ? ", ending by pointing at true north, 45° up" : ", ±5° on each axis and back to HOME") + ".",
+    "Run", go, e && only.includes("north") ? `The north step tilts the dish to roughly X ${sg(e.x, 0)}° (a large tilt, because of the ${S.offset.deg}° boresight offset). Check clearance all round.` : "");
+}
+$("comps").onclick = e => { const b = e.target.closest("button[data-run]"); if (b && !b.disabled) runTests([b.dataset.run]); };
+$("testall").onclick = () => {
+  const C = S.components;
+  runTests(Object.keys(TEST_META).filter(id => TEST_META[id].comp.every(k => C[k].found)));
+};
+$("testabort").onclick = () => cmd({cmd: "test_abort", why: "Abort test button"});
+
+// ------------------------------------------------------------- Demod tab
+const DM = {mode: "file", hist: [], runId: null, built: false, gal: "", tiles: "", fileKey: "", runsKey: "", lastPush: 0};
+try { DM.mode = localStorage.getItem("gs-dmmode") || "file"; } catch (e) {}
+const DM_PRESET = {ops20: [20e6, 2, "20 MBd, 2 samples/symbol = 40 MS/s"], linkx2: [2e6, 4, "2 MBd, 4 sps = 8 MS/s"], field1: [1e6, 2, "1 MBd, 2 sps = 2 MS/s"]};
+function dmSetMode(m) {
+  DM.mode = m;
+  document.querySelectorAll("#dm-mode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m));
+  const sim = S && S.sim;
+  $("dm-src-file").hidden = !(m === "file" || sim);
+  $("dm-src-sdr").hidden = m === "file";
+  $("dm-src-file").querySelector("label").textContent = m === "file" ? "IQ recording" : "Rehearsal file (simulator: stands in for the radio)";
+  try { localStorage.setItem("gs-dmmode", m); } catch (e) {}
+  dmHint();
+}
+function dmHint() {
+  const p = DM_PRESET[$("dm-preset").value];
+  if (!p) return;
+  const fs = p[0] * p[1], gbmin = fs * 4 * 60 / 1e9;
+  $("dm-presethint").textContent = `${p[2]} · QPSK 1/4` + (DM.mode !== "file" ? ` · recording needs ${gbmin.toFixed(1)} GB/min` : "");
+}
+document.querySelectorAll("#dm-mode button").forEach(b => b.onclick = () => dmSetMode(b.dataset.m));
+$("dm-preset").onchange = dmHint;
+$("dm-start").onclick = async () => {
+  const o = {mode: DM.mode, preset: $("dm-preset").value};
+  const file = $("dm-path").value.trim() || $("dm-file").value;
+  if (DM.mode === "file") o.input_file = file;
+  else {
+    o.rec_dir = $("dm-rec").value.trim(); o.centre_freq_hz = +$("dm-freq").value * 1e6; o.rx_gain_db = +$("dm-gain").value;
+    const dur = +$("dm-dur").value; if (dur > 0) o.duration_s = dur * 60;
+    if (S && S.sim) o.sim_input = file;
+  }
+  const j = await cmd({cmd: "demod_start", opts: o});
+  if (j.ok) { DM.hist = []; toast("Demodulator starting…"); }
+};
+$("dm-stop").onclick = () => cmd({cmd: "demod_stop"});
+$("dm-runs").onchange = () => cmd({cmd: "demod_view", run: $("dm-runs").value || null});
+
+function dmBuild(D) {
+  if (DM.built) return;
+  DM.built = true;
+  $("dm-preset").innerHTML = D.defaults.presets.map(p => `<option value="${p}">${p}</option>`).join("");
+  $("dm-preset").value = D.defaults.preset;
+  $("dm-freq").value = (D.defaults.centre_freq_hz / 1e6).toFixed(3);
+  $("dm-gain").value = D.defaults.rx_gain_db;
+  $("dm-rec").value = D.defaults.rec_dir;
+  dmSetMode(DM.mode);
+}
+const fmtB = n => n > 1e9 ? (n / 1e9).toFixed(2) + " GB" : n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : n > 1e3 ? (n / 1e3).toFixed(1) + " kB" : n + " B";
+const tile = (k, v, cls) => `<div class="${cls || ""}"><span>${esc(k)}</span><b>${v}</b></div>`;
+
+function dmChart(h) {
+  const svg = $("dm-chart");
+  if (h.length < 2) { svg.innerHTML = '<text x="300" y="95" text-anchor="middle" fill="#7D8B96" font-size="14">no data yet: the chart fills while the receiver runs</text>'; return; }
+  const t0 = h[0].t, t1 = h[h.length - 1].t, span = Math.max(t1 - t0, 10);
+  const L = 40, Rt = 560, T = 8, B = 168;
+  const X = t => L + (t - t0) / span * (Rt - L);
+  const rng = (key) => { const v = h.map(p => p[key]).filter(x => x != null); if (!v.length) return null; let a = Math.min(...v), b = Math.max(...v); if (b - a < 1) { const m = (a + b) / 2; a = m - .5; b = m + .5; } return [a, b]; };
+  const rs = rng("snr"), rc = rng("cfo");
+  let s = `<rect x="${L}" y="${T}" width="${Rt - L}" height="${B - T}" fill="none" stroke="${RULE}"/>`;
+  for (let i = 0; i < h.length - 1; i++) if (h[i].lock) s += `<rect x="${X(h[i].t).toFixed(1)}" y="${T}" width="${(X(h[i + 1].t) - X(h[i].t) + .6).toFixed(1)}" height="${B - T}" fill="#DDF3E5"/>`;
+  const line = (key, r, col, label, side) => {
+    if (!r) return "";
+    const Y = v => B - (v - r[0]) / (r[1] - r[0]) * (B - T);
+    const pts = h.filter(p => p[key] != null);
+    const x = side === "l" ? L - 4 : Rt + 4, anc = side === "l" ? "end" : "start";
+    return `<polyline fill="none" stroke="${col}" stroke-width="1.8" points="${pts.map(p => X(p.t).toFixed(1) + "," + Y(p[key]).toFixed(1)).join(" ")}"/>` +
+      `<text x="${x}" y="${T + 9}" text-anchor="${anc}" font-size="10" fill="${col}">${r[1].toFixed(1)}</text><text x="${x}" y="${B}" text-anchor="${anc}" font-size="10" fill="${col}">${r[0].toFixed(1)}</text>`;
+  };
+  s += line("snr", rs, "#2F5BD3", "SNR", "l") + line("cfo", rc, "#B5338A", "offset", "r");
+  s += `<text x="${L}" y="184" font-size="10" fill="${SUBINK}">0 s</text><text x="${Rt}" y="184" text-anchor="end" font-size="10" fill="${SUBINK}">${span.toFixed(0)} s · green = PL sync locked</text>`;
+  svg.innerHTML = s;
+}
+
+function renderDemod() {
+  const D = S.demod; if (!D) return;
+  dmBuild(D);
+  const st = $("dm-state"); st.textContent = D.state; st.className = "dmstate " + D.state;
+  $("dm-missing").hidden = D.installed; $("dm-missing").textContent = D.installed ? "" : "Demodulator not available: " + D.why_not;
+  $("dm-msg").textContent = D.error && D.state === "failed" ? D.error : D.msg || "";
+  $("dm-start").disabled = D.busy || !D.installed || S.test.state === "running" || S.sun.busy;
+  $("dm-stop").disabled = !D.busy;
+  const sdrRun = D.busy && D.sdr;
+  if (sdrRun) { $("sunstart").disabled = true; $("testall").disabled = true; }
+  // progress bar (file mode)
+  const showBar = D.progress != null && D.mode === "file";
+  $("dm-barwrap").hidden = !showBar; if (showBar) $("dm-bar").style.width = (D.progress * 100).toFixed(0) + "%";
+  // recordings dropdown
+  const fk = JSON.stringify(D.recordings.map(r => r.path));
+  if (fk !== DM.fileKey && document.activeElement !== $("dm-file")) {
+    DM.fileKey = fk; const cur = $("dm-file").value;
+    $("dm-file").innerHTML = D.recordings.length ? D.recordings.map(r => `<option value="${esc(r.path)}">${esc(r.name)} · ${fmtB(r.size)}</option>`).join("") :
+      `<option value="">(no recordings in ${esc(D.defaults.rec_dir)})</option>`;
+    if (cur) $("dm-file").value = cur;
+  }
+  // earlier runs
+  const rk = JSON.stringify([D.runs, D.shown_run, D.busy]);
+  if (rk !== DM.runsKey && document.activeElement !== $("dm-runs")) {
+    DM.runsKey = rk;
+    $("dm-runs").innerHTML = `<option value="">${D.busy ? "this run" : "latest"}</option>` + D.runs.map(r => `<option value="${r.run}">${r.run.replace("run_", "")} (${r.n})</option>`).join("");
+    $("dm-runs").value = D.run ? "" : (D.shown_run || "");
+  }
+  $("dm-runs").disabled = D.busy;
+  // history for the chart (new run -> reset)
+  if (D.run !== DM.runId) { DM.runId = D.run; DM.hist = []; }
+  const now = Date.now() / 1000;
+  if (D.busy && now - DM.lastPush > 1) { DM.lastPush = now; DM.hist.push({t: now, snr: D.snr_db, cfo: D.cfo_khz, lock: !!D.locked}); if (DM.hist.length > 3600) DM.hist.shift(); }
+  dmChart(DM.hist);
+  // tiles
+  const lock = D.locked == null ? ["", "–"] : D.locked ? ["on", "LOCKED"] : ["srch", "searching"];
+  let t = `<div class="lock ${lock[0]}"><span>PL sync</span><b><i></i> ${lock[1]}</b></div>`;
+  t += tile("Carrier offset", D.cfo_khz == null ? "–" : sg(D.cfo_khz, 2) + " kHz");
+  t += tile("SNR", D.snr_db == null ? "–" : D.snr_db.toFixed(1) + " dB");
+  t += tile("Data / dummy frames", `${D.plframes} / ${D.dummy}`);
+  t += tile("BCH frames / bad", `${D.bch_frames} / ${D.bch_err}`, D.bch_err > 0 && D.bch_err > D.bch_frames * 0.2 ? "bad" : "");
+  t += tile("GSSE ok / CRC bad", `${D.gsse_ok} / ${D.gsse_bad}`, D.gsse_bad > 0 ? "bad" : "");
+  t += tile("Files", D.files.filter(f => f.image || f.verdict).length);
+  if (D.rec) t += D.rec.on ? tile("Recording", `${D.rec.seconds} s · ${D.rec.gb.toFixed(1)} GB`) + tile("Disk free", D.rec.free_gb + " GB", D.rec.free_gb < 5 ? "bad" : "") +
+      (D.rec.level_dbfs != null ? tile("Input level", `${D.rec.level_dbfs.toFixed(1)} dBFS`, D.rec.peak_dbfs > -1 ? "bad" : "") : "") + (D.rec.overflows ? tile("Overflows", D.rec.overflows, "bad") : "") :
+      tile("Recording", "off") + tile("Disk free", D.rec.free_gb + " GB");
+  if (D.gate) t += tile("Live demod", `${D.gate.windows} windows` + (D.gate.dropped ? `, ${D.gate.dropped} dropped` : ""));
+  if (t !== DM.tiles) { DM.tiles = t; $("dm-tiles").innerHTML = t; }
+  // gallery
+  $("dm-runname").textContent = D.shown_run ? "· " + D.shown_run.replace("run_", "") : "";
+  const gk = JSON.stringify(D.files.map(f => [f.name, f.size, f.verdict]));
+  if (gk !== DM.gal) {
+    DM.gal = gk;
+    $("dm-gallery").innerHTML = D.files.length ? D.files.map(f => `<div class="gcard"><div class="pic">${f.image ? `<a href="${f.url}" target="_blank" rel="noopener"><img src="${f.url}" alt="${esc(f.name)}"></a>` : `<span class="muted" style="padding:30px">${esc(f.name.split(".").pop().toUpperCase())} file</span>`}</div>` +
+      `<div class="meta"><b>${esc(f.name)}</b><span>${fmtB(f.size)} <span class="badge ${f.verdict === "PASS" ? "PASS" : f.verdict === "FAIL" ? "FAIL" : "none"}">${f.verdict === "PASS" ? "hash OK" : f.verdict === "FAIL" ? "hash FAILED" : "no hash given"}</span></span>` +
+      `<a href="${f.url}" download="${esc(f.name)}" class="small">Download</a></div></div>`).join("") : '<div class="muted">Nothing received yet.</div>';
+  }
+  // log
+  const lg = $("dm-log"), near = lg.scrollHeight - lg.scrollTop - lg.clientHeight < 40;
+  lg.textContent = D.log.join("\n"); if (near) lg.scrollTop = lg.scrollHeight;
+  $("dm-cmd").textContent = D.cmd ? "$ " + D.cmd : "";
+}
+
+// lock the manual controls while the test runs
+function lockUi() {
+  if (!S || S.test.state !== "running") return;
+  for (const id of ["start", "home"]) $(id).disabled = true;
+  document.querySelectorAll(".key, #speeds button").forEach(b => b.disabled = true);
+  $("sunstart").disabled = true;
+}
+
+// ------------------------------------------------------------- live data
+// Draw at most once per animation frame and never while the tab is hidden: if the browser falls behind, old updates are
+// dropped instead of being replayed late (that looked like "frozen, then catches up a minute later").
+let rafPending = false;
+function schedule() {
+  if (rafPending || document.hidden) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; render(); });
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(); });
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onopen = () => { linkOk = true; };
+  es.onmessage = e => { linkOk = true; S = JSON.parse(e.data); window.GS = S; histAdd(); liveAdd(); schedule(); };
+  es.onerror = () => { es.close(); linkOk = false; if (S) render(); else chip("c-pi", "bad", "Pi relay: no connection to the app"); setTimeout(connect, 1500); };
+}
+connect();
+})();
+</script>
+
+<script type="module" src="/viewer.js"></script>
+</body>
+</html>

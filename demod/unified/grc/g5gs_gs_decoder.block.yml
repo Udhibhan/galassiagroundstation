@@ -1,0 +1,70 @@
+id: g5gs_gs_decoder
+label: G5 GSSE/GSUFTP Decoder
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: frame_len
+  label: BBFRAME length (B)
+  dtype: int
+  default: '2001'
+- id: stack
+  label: Stack (auto / rev1.0 / rev1.2)
+  dtype: string
+  default: auto
+- id: out_dir
+  label: Output folder
+  dtype: string
+  default: ./downlink
+- id: verify_hashes
+  label: sha256sum file to check
+  dtype: string
+  default: ''
+- id: bbframe_file
+  label: Also write BBFRAMEs to
+  dtype: string
+  default: ''
+- id: udp_forward
+  label: Also send BBFRAMEs to host:port
+  dtype: string
+  default: ''
+- id: udp_raw_out
+  label: 'Branch C1: UDP payloads to'
+  dtype: string
+  default: ''
+  hide: part
+- id: udp_raw_ref
+  label: 'Branch C1: reference file'
+  dtype: string
+  default: ''
+  hide: part
+- id: report_json
+  label: JSON report
+  dtype: string
+  default: ''
+  hide: part
+- id: dump_payloads
+  label: Dump payloads to folder
+  dtype: string
+  default: ''
+  hide: part
+- id: isi
+  label: Only ISI (-1 = any)
+  dtype: int
+  default: '-1'
+  hide: part
+- id: udp_port
+  label: rev1.2 UDP port filter (0 = any)
+  dtype: int
+  default: '0'
+  hide: part
+inputs:
+- domain: stream
+  dtype: byte
+templates:
+  imports: import g5gs
+  make: g5gs.gs_decoder(frame_len=${frame_len}, stack=${stack}, out_dir=${out_dir}, verify_hashes=${verify_hashes},
+    bbframe_file=${bbframe_file}, udp_forward=${udp_forward}, udp_raw_out=${udp_raw_out}, udp_raw_ref=${udp_raw_ref},
+    report_json=${report_json}, dump_payloads=${dump_payloads}, isi=${isi}, udp_port=${udp_port})
+documentation: 'gs_rx v2.2 inside the flowgraph (g5gs/gs_decoder.py): BBFRAMEs -> GSSE -> GSUFTP files.'
+file_format: 1

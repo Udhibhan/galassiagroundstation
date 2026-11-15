@@ -1,0 +1,60 @@
+id: g5gs_doppler_precomp
+label: G5 Doppler Pre-comp (TLE)
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: tle
+  label: TLE / OMM file (empty = off)
+  dtype: file_open
+  default: ''
+- id: sat
+  label: Satellite (name / NORAD, if several)
+  dtype: string
+  default: ''
+- id: samp_rate
+  label: Sample rate
+  dtype: real
+  default: 40e6
+- id: station
+  label: Station lat,lon,h
+  dtype: string
+  default: 1.2977,103.7764,60
+- id: rf_freq
+  label: Downlink RF (Hz)
+  dtype: real
+  default: 13.95e9
+- id: sign
+  label: Sign (+1, or -1 if inverted and not conjugated)
+  dtype: real
+  default: '1.0'
+  hide: part
+- id: dt
+  label: Time shift dt (s)
+  dtype: real
+  default: '0.0'
+  hide: part
+- id: offset_hz
+  label: Extra fixed offset (Hz)
+  dtype: real
+  default: '0.0'
+  hide: part
+- id: start_utc
+  label: Start UTC if no rx_time tag
+  dtype: string
+  default: ''
+  hide: part
+inputs:
+- domain: stream
+  dtype: complex
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.doppler_precomp(tle=${tle}, sat=${sat}, samp_rate=${samp_rate}, station=${station}, rf_freq=${rf_freq},
+    sign=${sign}, dt=${dt}, offset_hz=${offset_hz}, start_utc=${start_utc})
+documentation: 'Removes the SGP4-predicted carrier Doppler, sample by sample (g5gs/doppler_block.py,
+
+  field_test/doppler_precomp.py). Empty TLE = pass-through. Time from rx_time tags.'
+file_format: 1

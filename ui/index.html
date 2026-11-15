@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gimbal Console</title>
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js","three/addons/":"/vendor/addons/"}}</script>
+<style>
+@font-face{font-family:"Barlow";font-weight:400;src:url(/vendor/fonts/barlow-latin-400-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow";font-weight:500 600;src:url(/vendor/fonts/barlow-latin-600-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow";font-weight:700;src:url(/vendor/fonts/barlow-latin-700-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow Condensed";font-weight:500 600;src:url(/vendor/fonts/barlow-condensed-latin-600-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow Condensed";font-weight:700;src:url(/vendor/fonts/barlow-condensed-latin-700-normal.woff2) format("woff2");font-display:swap}
+:root{
+  --paper:#E9EDF0; --panel:#FFFFFF; --ink:#13202A; --ink-2:#4A5966; --ink-3:#7D8B96; --rule:#CBD3DA;
+  --x:#2F5BD3; --y:#B5338A; --stop:#D92B1E; --ok:#1E8E4E; --okbg:#DDF3E5; --warn:#B7791F; --amber:#F2A900; --amberbg:#FFF2CC;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.4 var(--body);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--x);outline-offset:2px}
+[hidden]{display:none!important}
+
+header{display:flex;align-items:center;gap:18px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--rule);flex-wrap:wrap;position:sticky;top:0;z-index:5}
+.brand{font:700 22px/1 var(--cond);white-space:nowrap}
+.chips{display:flex;gap:16px;margin-left:auto;flex-wrap:wrap;font-size:15px;color:var(--ink-2)}
+.chip{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%!important;background:var(--ink-3)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--amber)} .dot.bad{background:var(--stop)}
+#stop{border:0;background:var(--stop);color:#fff;font:700 26px/1 var(--cond);letter-spacing:.05em;padding:14px 34px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+#stop:active{transform:translateY(1px);box-shadow:none}
+#stop small{display:block;font:500 12px/1 var(--body);letter-spacing:0;opacity:.9;margin-top:4px}
+.banner{display:none;padding:10px 20px;font-weight:600;color:#fff;background:var(--stop)}
+.banner.on{display:block}
+
+nav.tabs{display:flex;gap:4px;max-width:1100px;margin:14px auto 0;padding:0 16px}
+nav.tabs button{border:1px solid var(--rule);border-bottom:0;background:var(--paper);padding:10px 30px;font:700 19px/1 var(--cond);color:var(--ink-2)}
+nav.tabs button[aria-selected=true]{background:var(--panel);color:var(--ink)}
+main{max-width:1100px;margin:0 auto;padding:0 16px 24px}
+.panel{background:var(--panel);border:1px solid var(--rule);padding:22px}
+h2{font:700 20px/1.1 var(--cond);margin:0 0 8px}
+.muted{color:var(--ink-2)} .small{font-size:14px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:11px 22px;font:700 20px/1 var(--cond)}
+.btn.go{background:var(--ok);border-color:var(--ok)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn.danger{background:transparent;color:var(--stop);border-color:var(--stop)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.seg{display:inline-flex;border:1px solid var(--rule)}
+.seg button{border:0;background:var(--panel);padding:9px 16px;font:600 17px/1 var(--cond);border-left:1px solid var(--rule)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+
+/* 3D stage */
+.stage{position:relative;aspect-ratio:1/1;min-height:280px;background:#F6F9FB;border:1px solid var(--rule)}
+#v3d{position:absolute;inset:0}
+.v3dmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--ink-2);font-size:14px;pointer-events:none}
+#v3d-note{position:absolute;left:0;bottom:0;font-size:13px;color:var(--ink-2);background:rgba(255,255,255,.92);padding:3px 9px;border-top:1px solid var(--rule);border-right:1px solid var(--rule);z-index:2}
+#v3d-note.on{color:var(--ok);font-weight:600} #v3d-note.moving{color:#6B4A00;background:var(--amberbg)}
+#v3d-btns{position:absolute;right:6px;top:6px;display:flex;gap:4px;z-index:2}
+#v3d-btns button{border:1px solid var(--rule);background:rgba(255,255,255,.92);padding:3px 9px;font:600 14px/1.2 var(--cond)}
+
+/* manual: WASD around the model */
+.pad{display:grid;grid-template-columns:130px minmax(280px,480px) 130px;grid-template-rows:118px auto 118px;gap:12px;justify-content:center;align-items:stretch}
+.key{border:2px solid var(--rule);background:var(--panel);box-shadow:0 4px 0 var(--rule);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;user-select:none;touch-action:manipulation;padding:0;transition:background .12s,border-color .12s}
+.key b{font:700 46px/1 var(--cond)}
+.key span{font:700 17px/1 var(--cond)}
+.key.x b,.key.x span{color:var(--x)} .key.y b,.key.y span{color:var(--y)}
+.key:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 var(--rule)}
+.key:disabled{opacity:.45;cursor:not-allowed}
+.key.busy{background:var(--amberbg);border-color:var(--amber);box-shadow:0 4px 0 var(--amber)}
+.key.go{background:var(--okbg);border-color:var(--ok);box-shadow:0 4px 0 var(--ok)}
+.key.flash{animation:flash 1.4s}
+@keyframes flash{0%,60%{background:#FBD5D2;border-color:var(--stop);box-shadow:0 4px 0 var(--stop)}100%{}}
+#kW{grid-column:2;grid-row:1;justify-self:center;width:130px} #kS{grid-column:2;grid-row:3;justify-self:center;width:130px}
+#kA{grid-column:1;grid-row:2;align-self:center;height:118px} #kD{grid-column:3;grid-row:2;align-self:center;height:118px}
+#slot-manual{grid-column:2;grid-row:2}
+.readout{display:flex;justify-content:center;gap:14px;margin:18px 0 0}
+.readout div{background:var(--paper);padding:8px 26px;text-align:center;min-width:150px}
+.readout small{display:block;font-size:13px;color:var(--ink-2)}
+.readout b{font:700 30px/1.1 var(--cond)}
+.readout .rx b{color:var(--x)} .readout .ry b{color:var(--y)}
+.ctl{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:18px;padding-top:18px;border-top:1px solid var(--rule)}
+.ctl label{display:flex;align-items:center;gap:6px;color:var(--ink-2);font:600 17px/1 var(--cond)}
+.ctl input[type=number]{width:90px;padding:9px 10px;border:2px solid var(--rule);background:#fff;font:700 20px/1 var(--cond)}
+.ctl input[type=number]:focus{border-color:var(--x);outline:0}
+.ctl .unit{color:var(--ink-3);font-size:14px}
+.hint{text-align:center;color:var(--ink-2);font-size:14px;margin-top:10px;min-height:20px}
+
+/* auto */
+.auto{display:grid;grid-template-columns:minmax(260px,420px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.auto{grid-template-columns:1fr}}
+.runrow{display:flex;gap:12px;align-items:center;margin:14px 0 10px}
+.runrow .btn.go{padding:14px 34px;font-size:22px}
+.runrow select{padding:10px;border:2px solid var(--rule);background:#fff;font-weight:600}
+.line{font-size:15px;color:var(--ink-2);min-height:22px}
+.line.bad{color:var(--stop);font-weight:600}
+.bar{height:8px;background:var(--paper);margin:10px 0}
+.bar i{display:block;height:100%;width:0;background:var(--ink);transition:width .4s}
+.narr{list-style:none;margin:0;padding:0;border:1px solid var(--rule);max-height:340px;overflow:auto;background:#fff}
+.narr li{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:7px 12px;border-bottom:1px solid var(--paper);font-size:15px}
+.narr li:last-child{background:#F2F8FF;font-weight:600}
+.narr li.warn{color:var(--warn)} .narr li.error{color:var(--stop);font-weight:600}
+.narr .t{color:var(--ink-3);font-size:13px;padding-top:2px}
+.narr .none{display:block;color:var(--ink-3);padding:14px 12px}
+.live{margin-top:10px;font-size:15px;color:var(--ink-2)}
+.passes{width:100%;border-collapse:collapse;font-size:15px;margin-top:12px}
+.passes th{text-align:left;font:600 13px/1.2 var(--body);color:var(--ink-3);padding:4px 8px;border-bottom:1px solid var(--rule)}
+.passes td{padding:7px 8px;border-bottom:1px solid var(--paper)}
+.passes tr.no td{color:var(--ink-3)}
+
+/* test */
+table.test{width:100%;border-collapse:collapse}
+table.test th{text-align:left;font:600 13px/1.2 var(--body);color:var(--ink-3);padding:6px 10px;border-bottom:1px solid var(--rule)}
+table.test td{padding:13px 10px;border-bottom:1px solid var(--paper);vertical-align:top}
+table.test .nm{font:700 20px/1.1 var(--cond)}
+table.test .mv{font-size:13px;color:var(--warn);font-weight:600;display:block;margin-top:2px}
+.det{display:inline-flex;align-items:center;gap:7px;font-size:15px;color:var(--ink-2)}
+.det i{width:10px;height:10px;border-radius:50%!important;background:var(--ink-3);display:inline-block}
+.det.ok i{background:var(--ok)} .det.no i{background:var(--stop)}
+.res{font-size:15px;color:var(--ink-2)} .res.pass{color:var(--ok);font-weight:600} .res.fail{color:var(--stop);font-weight:600} .res.warn{color:var(--warn);font-weight:600}
+.res.running{color:var(--x);font-weight:600}
+
+.log{margin-top:16px;font-size:13px;color:var(--ink-2);background:var(--panel);border:1px solid var(--rule);max-height:110px;overflow:auto}
+.log div{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:2px 10px}
+.log .error{color:var(--stop)} .log .warn{color:var(--warn)}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;font-size:15px;max-width:min(560px,90vw);display:none;z-index:9}
+#toast.err{background:var(--stop)}
+.modal{position:fixed;inset:0;background:rgba(19,32,42,.55);display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);padding:22px;max-width:470px}
+.modal h3{font:700 24px/1.1 var(--cond);margin:0 0 8px;color:var(--stop)}
+.modal label{display:flex;gap:10px;align-items:flex-start;margin:12px 0;cursor:pointer}
+.modal input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex:none}
+@media (max-width:640px){.pad{grid-template-columns:84px 1fr 84px;grid-template-rows:84px auto 84px}#kW,#kS{width:84px}#kA,#kD{height:84px}.key b{font-size:34px}nav.tabs button{padding:10px 16px}#stop{padding:12px 20px}header{padding:10px 14px}.chips{display:none}}
+
+/* rounded corners (as in the original design) */
+.panel{border-radius:0 14px 14px 14px}
+nav.tabs button{border-radius:10px 10px 0 0}
+.btn{border-radius:10px}
+.seg{border-radius:9px;overflow:hidden}
+#stop{border-radius:12px}
+.stage{border-radius:14px;overflow:hidden}
+.key{border-radius:16px}
+.readout div{border-radius:10px}
+.ctl input[type=number],.runrow select{border-radius:10px}
+.narr,.log,.dcard{border-radius:12px;overflow:hidden}
+.modal .box{border-radius:14px}
+#toast{border-radius:10px}
+#v3d-btns button{border-radius:7px}
+#v3d-note{border-top-right-radius:8px}
+.bar{border-radius:4px;overflow:hidden}
+.bar i{border-radius:4px}
+.dot,.det i{border-radius:50%}
+
+/* progress diagram */
+.steps{list-style:none;display:flex;margin:14px 0 4px;padding:0;gap:0}
+.steps li{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;font:600 15px/1.1 var(--cond);color:var(--ink-3)}
+.steps li::before{content:"";position:absolute;top:13px;left:-50%;width:100%;height:3px;background:var(--rule);z-index:0}
+.steps li:first-child::before{display:none}
+.steps li i{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;background:#fff;border:3px solid var(--rule);display:flex;align-items:center;justify-content:center;font:700 14px/1 var(--cond);font-style:normal;margin-bottom:6px}
+.steps li.done{color:var(--ink)} .steps li.done i{background:var(--ok);border-color:var(--ok);color:#fff} .steps li.done::before{background:var(--ok)}
+.steps li.now{color:var(--x)} .steps li.now i{border-color:var(--x);color:var(--x);box-shadow:0 0 0 4px rgba(47,91,211,.15)}
+.steps li.now::before{background:var(--ok)}
+.steps li.fail{color:var(--stop)} .steps li.fail i{background:var(--stop);border-color:var(--stop);color:#fff}
+.steps li.skip{opacity:.4}
+.steps li.stop i{background:var(--amber);border-color:var(--amber);color:#3d2a00}
+
+/* diagrams */
+.diag{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+@media (max-width:860px){.diag{grid-template-columns:1fr}}
+.dcard{border:1px solid var(--rule);padding:12px 14px;background:#fff}
+.dcard h3{font:700 17px/1 var(--cond);margin:0 0 8px;color:var(--ink)}
+.dcard svg{width:100%;height:auto;display:block}
+.dcard .cap{font-size:13px;color:var(--ink-2);margin-top:6px;min-height:18px}
+.dcard .key2{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:6px}
+.dcard .key2 i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.passes tr.pk{cursor:pointer} .passes tr.pk:hover{background:#F6F9FB} .passes tr.sel{background:#EAF1FF}
+
+/* receive card */
+.rx{margin-top:20px;border:1px solid var(--rule);border-radius:12px;padding:16px;background:#fff}
+.rx .rxhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+.rx h3{font:700 20px/1 var(--cond);margin:0}
+.rx .pill{font:700 15px/1 var(--cond);padding:5px 12px;border-radius:999px;background:var(--paper);color:var(--ink-2);margin-left:10px}
+.rx .pill.running,.rx .pill.starting{background:var(--amberbg);color:#6B4A00} .rx .pill.done{background:var(--okbg);color:#0F5A2F} .rx .pill.failed{background:#FBD5D2;color:#7A1710}
+.rxopts{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:12px 0;font-size:14px;color:var(--ink-2)}
+.rxopts select{padding:7px 9px;border:2px solid var(--rule);border-radius:9px;background:#fff;font-weight:600}
+.rxopts label{display:flex;align-items:center;gap:7px}
+.rxstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:6px 0 12px}
+.rxstats div{background:var(--paper);border-radius:10px;padding:7px 10px}
+.rxstats span{display:block;font-size:12px;color:var(--ink-2)} .rxstats b{font:700 21px/1.15 var(--cond)}
+.rxstats .ok b{color:var(--ok)} .rxstats .bad b{color:var(--stop)}
+.rx svg{width:100%;height:auto;display:block;max-height:220px}
+.rx .cap{font-size:13px;color:var(--ink-2);margin:4px 0 8px;min-height:18px}
+.media{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.mi{border:1px solid var(--rule);border-radius:10px;overflow:hidden;font-size:12px;background:#fff}
+.mi .pic{background:#F6F9FB;display:flex;align-items:center;justify-content:center;min-height:90px}
+.mi img{max-width:100%;max-height:140px;display:block}
+.mi .m{padding:6px 8px;display:grid;gap:2px;overflow-wrap:anywhere}
+.mi .m b{font:700 15px/1.2 var(--cond)}
+.badge{display:inline-block;font:700 11px/1 var(--cond);padding:3px 6px;border-radius:5px;background:var(--paper);color:var(--ink-2)}
+.badge.PASS{background:var(--okbg);color:#0F5A2F} .badge.FAIL{background:#FBD5D2;color:#7A1710}
+.pf{margin:0;text-align:center;font-size:12px;color:var(--ink-2)}
+.pf img{max-width:200px;max-height:150px;border:1px solid var(--rule);border-radius:8px;display:block;margin:0 auto 4px;background:#F6F9FB}
+.pf .nopic{width:160px;height:110px;border:1px dashed var(--rule);border-radius:8px;display:flex;align-items:center;justify-content:center;margin:0 auto 4px}
+.picrow{margin:8px 0}
+.fileb{cursor:pointer;display:inline-block;padding:7px 14px;font-size:16px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Gimbal Console</div>
+  <div class="chips" id="status"></div>
+  <button id="stop" title="Stop everything (Space or Esc). Motors stay ON and holding.">STOP<small>Space / Esc</small></button>
+</header>
+<div class="banner" id="banner"></div>
+
+<nav class="tabs" role="tablist" aria-label="Mode">
+  <button role="tab" id="t-manual" aria-selected="true">Manual</button>
+  <button role="tab" id="t-auto" aria-selected="false">Auto</button>
+  <button role="tab" id="t-test" aria-selected="false">Test</button>
+</nav>
+<main>
+  <!-- ============================ MANUAL ============================ -->
+  <section class="panel" id="p-manual">
+    <div class="pad">
+      <button class="key x" id="kW" data-axis="x" data-dir="1"><b>W</b><span>X +</span></button>
+      <button class="key y" id="kA" data-axis="y" data-dir="-1"><b>A</b><span>Y −</span></button>
+      <div class="stage" id="slot-manual"></div>
+      <button class="key y" id="kD" data-axis="y" data-dir="1"><b>D</b><span>Y +</span></button>
+      <button class="key x" id="kS" data-axis="x" data-dir="-1"><b>S</b><span>X −</span></button>
+    </div>
+    <div class="readout"><div class="rx"><small>X axis</small><b id="m-x">–</b></div><div class="ry"><small>Y axis</small><b id="m-y">–</b></div></div>
+    <div class="hint" id="m-hint"></div>
+    <div class="ctl">
+      <button class="btn go" id="start">Start</button>
+      <button class="btn ghost" id="home">Home</button>
+      <span class="seg" id="speeds" role="group" aria-label="Speed"></span><span class="unit">°/s</span>
+      <label>X <input id="gx" type="number" step="0.1" min="-80" max="80" placeholder="0"></label>
+      <label>Y <input id="gy" type="number" step="0.1" min="-80" max="80" placeholder="0"></label>
+      <button class="btn ghost" id="gogo">Go to</button>
+    </div>
+    <div class="ctl" id="azel-row">
+      <span class="seg" id="compass" role="group" aria-label="Direction"></span>
+      <label>Az <input id="gaz" type="number" step="0.1" min="0" max="360" placeholder="0 = N"></label>
+      <label>El <input id="gel" type="number" step="0.1" min="0" max="90" placeholder="45"></label>
+      <button class="btn ghost" id="goazel">Point</button>
+    </div>
+    <div class="rx" id="rx-manual"></div>
+  </section>
+
+  <!-- ============================ AUTO ============================ -->
+  <section class="panel" id="p-auto" hidden>
+    <div class="auto">
+      <div class="stage" id="slot-auto"></div>
+      <div>
+        <div class="seg" id="automode" role="group" aria-label="Auto mode">
+          <button data-m="sun" aria-pressed="true">Sun</button><button data-m="sat" aria-pressed="false">Satellite</button>
+        </div>
+
+        <div id="auto-sun">
+          <div class="runrow"><button class="btn go" id="sunauto">Track the Sun</button><button class="btn danger" id="sunautostop">Stop</button></div>
+          <ol class="steps" id="sunsteps"></ol>
+          <div class="line" id="sunline"></div>
+          <div class="bar"><i id="autobar"></i></div>
+          <ol class="narr" id="sunnarr"></ol>
+          <div class="live" id="sunlive"></div>
+        </div>
+
+        <div id="auto-sat" hidden>
+          <div class="runrow">
+            <select id="satsel"><option value="">Auto: next trackable pass</option></select>
+            <button class="btn go" id="satgo">Track</button><button class="btn danger" id="satstop">Stop</button>
+          </div>
+          <ol class="steps" id="satsteps"></ol>
+          <div class="line" id="satline"></div>
+          <ol class="narr" id="satnarr"></ol>
+        </div>
+      </div>
+    </div>
+    <div class="diag" id="diag-sun">
+      <div class="dcard"><h3>Where the Sun and the dish are</h3><svg id="sunsky" viewBox="-116 -116 232 232" role="img" aria-label="Sky plot"></svg>
+        <div class="key2"><span><i style="background:#E3A008"></i>Sun (path ±3 h)</span><span><i style="background:var(--y)"></i>dish beam</span></div><div class="cap" id="sunskycap"></div></div>
+      <div class="dcard"><h3 id="sunpowt">Radio power from the SDR</h3><svg id="sunpow" viewBox="0 0 380 220" role="img" aria-label="Radio power chart"></svg><div class="cap" id="sunpowcap"></div></div>
+    </div>
+    <div class="diag" id="diag-sat" hidden>
+      <div class="dcard"><h3>Sky track of the pass</h3><svg id="satsky" viewBox="-116 -116 232 232" role="img" aria-label="Sky plot of the pass"></svg>
+        <div class="key2"><span><i style="background:var(--x)"></i>dish can follow</span><span><i style="background:#9AA7B3"></i>out of reach</span><span><i style="background:var(--ok)"></i>rises</span><span><i style="background:var(--stop)"></i>sets</span><span><i style="background:var(--y)"></i>dish beam</span></div><div class="cap" id="satskycap"></div></div>
+      <div class="dcard"><h3>Elevation during the pass</h3><svg id="satel" viewBox="0 0 380 220" role="img" aria-label="Elevation chart"></svg><div class="cap" id="satelcap"></div></div>
+    </div>
+    <div class="rx" id="rx-sat" hidden></div>
+    <div class="dcard" id="satlist" style="margin-top:16px" hidden>
+      <h3>Upcoming passes</h3>
+      <table class="passes"><thead><tr><th>Time</th><th>Satellite</th><th>Max el.</th><th>Dish can follow</th></tr></thead><tbody id="satrows"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ============================ TEST ============================ -->
+  <section class="panel" id="p-test" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">Detected hardware</h2>
+      <div class="row"><button class="btn go" id="testall">Test everything detected</button><button class="btn danger" id="testabort">Abort</button></div>
+    </div>
+    <table class="test"><thead><tr><th>Check</th><th>Detected</th><th></th><th>Result</th></tr></thead><tbody id="testrows"></tbody></table>
+  </section>
+
+  <div class="log" id="log"></div>
+</main>
+
+<!-- the one 3D view; it is moved into the Manual or Auto slot -->
+<div id="v3d">
+  <div class="v3dmsg" id="v3d-msg">Loading the 3D model…</div>
+  <div id="v3d-note"></div>
+  <div id="v3d-btns"><button id="v3d-reset" title="Reset the camera">Reset view</button><button id="v3d-pause" title="Turn the 3D drawing off if the page feels slow">3D on</button></div>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="box">
+    <h3 id="mtitle">The dish will move</h3>
+    <p id="mtext" class="muted"></p>
+    <label><input type="checkbox" id="mchk"><span>The area around the dish is clear, the load is supported, and I can reach the emergency stop.</span></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="mcancel">Cancel</button><button class="btn go" id="mgo" disabled>Go</button></div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let S = null, linkOk = false, lastSeq = {x: null, y: null};
+const inflight = new Set();
+const KEYS = {w: ["x", 1], s: ["x", -1], d: ["y", 1], a: ["y", -1]};
+const keyEl = (ax, d) => document.querySelector(`.key[data-axis="${ax}"][data-dir="${d}"]`);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const sg = (v, n) => v == null ? "–" : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(n);
+const deg = v => v == null ? "–" : sg(v, 1) + "°";
+const hm = iso => new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"});
+const hm2 = iso => new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hourCycle: "h23"});
+
+async function cmd(c, quiet) {
+  try {
+    const r = await fetch("/api/cmd", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(c)});
+    const j = await r.json();
+    if (!j.ok && !quiet) toast(j.error, true);
+    return j;
+  } catch (e) { if (!quiet) toast("No connection to the station", true); return {ok: false, error: "no connection"}; }
+}
+let tt = null;
+function toast(msg, err) {
+  const t = $("toast"); t.textContent = msg; t.className = err ? "err" : ""; t.style.display = "block";
+  clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", 5000);
+}
+const stopAll = why => cmd({cmd: "stop", why: why || "STOP button"});
+
+// heartbeat: the station stops everything if it hears nothing from the page for 2 s
+setInterval(() => cmd({cmd: "heartbeat"}, true), 500);
+addEventListener("pagehide", () => { try { navigator.sendBeacon("/api/cmd", new Blob([JSON.stringify({cmd: "stop", why: "page closed"})], {type: "application/json"})); } catch (e) {} });
+
+// ---------------------------------------------------------------- tabs + the shared 3D view
+let tab = "manual";
+try { tab = localStorage.getItem("gs-tab") || "manual"; } catch (e) {}
+if (["manual", "auto", "test"].includes(location.hash.slice(1))) tab = location.hash.slice(1);
+if (!["manual", "auto", "test"].includes(tab)) tab = "manual";
+function setTab(t) {
+  tab = t;
+  for (const n of ["manual", "auto", "test"]) { $("t-" + n).setAttribute("aria-selected", n === t); $("p-" + n).hidden = n !== t; }
+  try { localStorage.setItem("gs-tab", t); } catch (e) {}
+  const slot = t === "manual" ? $("slot-manual") : t === "auto" ? $("slot-auto") : null;
+  if (slot) { slot.appendChild($("v3d")); window.dispatchEvent(new Event("gs-resize")); } else document.body.appendChild($("v3d")), $("v3d").style.display = "none";
+  if (slot) $("v3d").style.display = "";
+  if (S) schedule();
+}
+for (const n of ["manual", "auto", "test"]) $("t-" + n).onclick = () => setTab(n);
+
+// ---------------------------------------------------------------- confirm dialog (anything that moves the dish)
+let pendingGo = null;
+function confirmThen(title, text, goLabel, fn) {
+  $("mtitle").textContent = title; $("mtext").textContent = text; $("mgo").textContent = goLabel;
+  $("mchk").checked = false; $("mgo").disabled = true; pendingGo = fn; $("modal").classList.add("on");
+}
+$("mchk").onchange = () => { $("mgo").disabled = !$("mchk").checked; };
+$("mcancel").onclick = () => { pendingGo = null; $("modal").classList.remove("on"); };
+$("mgo").onclick = async () => { $("modal").classList.remove("on"); const f = pendingGo; pendingGo = null; if (f) await f(); };
+
+// ---------------------------------------------------------------- manual
+async function press(ax, d) {
+  if (!S || !S.gimbal.started) { toast("Press Start first", true); flash(ax, d); return; }
+  const id = ax + d; inflight.add(id); schedule();
+  const j = await cmd({cmd: "key", axis: ax, dir: d}, true);
+  inflight.delete(id);
+  if (!j.ok) { flash(ax, d); toast(j.error, true); }
+  schedule();
+}
+function flash(ax, d) { const k = keyEl(ax, d); if (!k) return; k.classList.remove("flash"); void k.offsetWidth; k.classList.add("flash"); }
+document.querySelectorAll(".key").forEach(b => b.onclick = () => press(b.dataset.axis, +b.dataset.dir));
+$("start").onclick = () => confirmThen("Start the motors",
+  "Start sets up both drives (motors switch OFF for a moment), then wakes X and Y. Support the load first.", "Start",
+  async () => { const j = await cmd({cmd: "start", confirm: true}); if (j.ok) toast("Starting…"); });
+$("home").onclick = async () => { const j = await cmd({cmd: "home"}); if (j.ok) toast("Homing to 0 / 0…"); };
+$("gogo").onclick = async () => {
+  const x = parseFloat($("gx").value), y = parseFloat($("gy").value);
+  if (isNaN(x) || isNaN(y)) { toast("Enter both X and Y", true); return; }
+  await cmd({cmd: "goto", x, y});
+};
+// sky direction: compass buttons fill the azimuth (true north = 0, east = 90, ...), then Point
+for (const [t, a] of [["N", 0], ["NE", 45], ["E", 90], ["SE", 135], ["S", 180], ["SW", 225], ["W", 270], ["NW", 315]]) {
+  const b = document.createElement("button"); b.className = "btn ghost"; b.textContent = t; b.title = `azimuth ${a}°`;
+  b.onclick = () => { $("gaz").value = a; if ($("gel").value === "") $("gel").value = 45; };
+  $("compass").appendChild(b);
+}
+$("goazel").onclick = async () => {
+  const az = parseFloat($("gaz").value), el = parseFloat($("gel").value);
+  if (isNaN(az) || isNaN(el)) { toast("Enter azimuth (0 = N, 90 = E, 180 = S, 270 = W) and elevation", true); return; }
+  const j = await cmd({cmd: "goto_azel", az: ((az % 360) + 360) % 360, el});
+  if (j.ok && j.result && !j.result.yaw_known) toast("North not known yet (no GNSS RTK FIXED / Sun run): yaw 0 assumed", true);
+};
+$("stop").onclick = () => stopAll("STOP button");
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === " " || k === "escape" || e.code === "Space") {
+    if (e.target && e.target.tagName === "INPUT" && k === " ") return;
+    e.preventDefault(); $("modal").classList.remove("on");
+    if (!e.repeat) stopAll(k === "escape" ? "Esc key" : "Space key");
+    return;
+  }
+  if (tab !== "manual" || (e.target && ["INPUT", "SELECT"].includes(e.target.tagName))) return;
+  if (!KEYS[k] || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  if (e.repeat || $("modal").classList.contains("on")) return;
+  press(...KEYS[k]);
+});
+
+let speedsBuilt = false;
+function renderManual() {
+  const g = S.gimbal, ax = g.axes, auto = busyAuto();
+  const busy = ["x", "y"].some(k => ax[k].phase !== "idle");
+  $("m-x").textContent = deg(ax.x.angle); $("m-y").textContent = deg(ax.y.angle);
+  $("start").disabled = g.mode === "offline" || g.mode === "starting" || g.mode === "homing" || busy || auto;
+  $("start").textContent = g.started ? "Start again" : "Start";
+  const homing = g.homing || g.mode === "homing";
+  $("home").disabled = homing ? false : (g.mode === "offline" || g.mode === "starting" || busy || auto || !!g.act);
+  $("gogo").disabled = !g.started || g.mode !== "on" || !!g.act || auto;
+  $("m-hint").textContent = auto ? "Auto is running: Manual is locked. Press STOP to take over." : ({
+    offline: "Gimbal not connected.",
+    ready: "Drives found. Press Start to wake the motors.",
+    starting: "Starting: " + (g.start_step || "…"),
+    homing: "Homing to 0 / 0…",
+    on: g.act ? "Moving: " + g.act.label : (g.started ? "Motors on. Use W A S D (press once to move, again to stop)." : "Press Start."),
+    fault: "Fault: " + (g.fault || "support the load, then press Start again."),
+  }[g.mode] || g.mode);
+  if (!speedsBuilt) {
+    $("speeds").innerHTML = g.speeds.map(v => `<button data-v="${v}">${v.toFixed(1)}</button>`).join("");
+    $("speeds").querySelectorAll("button").forEach(b => b.onclick = async () => {
+      const j = await cmd({cmd: "speed", value: +b.dataset.v});
+      if (j.ok && j.result === "needs start") toast("The drive refused a live speed change: press Start to apply it.", true);
+    });
+    speedsBuilt = true;
+  }
+  $("speeds").querySelectorAll("button").forEach(b => { b.setAttribute("aria-pressed", +b.dataset.v === g.speed); b.disabled = busy || homing || auto; });
+  for (const [, [a, d]] of Object.entries(KEYS)) {
+    const el = keyEl(a, d), A = ax[a], mine = A.latch === d;
+    const moving = A.phase === "moving" && mine && !g.act;
+    const amber = inflight.has(a + d) || (A.phase === "starting" && mine) || (A.phase === "stopping" && (mine || A.pending === d)) || A.pending === d;
+    el.classList.toggle("go", moving); el.classList.toggle("busy", amber && !moving);
+    el.disabled = !g.started || g.mode !== "on" || !!g.act || auto;
+    const r = A.refusal;
+    if (lastSeq[a] !== null && r.seq > lastSeq[a] && r.dir === d) { flash(a, d); toast(r.msg, true); }
+  }
+  for (const a of ["x", "y"]) lastSeq[a] = ax[a].refusal.seq;
+}
+const busyAuto = () => !!(S && (S.sun.busy || (S.sat && S.sat.busy) || S.test.state === "running"));
+
+// ---------------------------------------------------------------- narration list
+function narr(id, prog, none) {
+  const ol = $(id), L = (prog && prog.log) || [];
+  const key = L.length + ":" + (L.length ? L[L.length - 1].msg : "");
+  if (ol.dataset.k === key) return;
+  ol.dataset.k = key;
+  if (!L.length) { ol.innerHTML = `<li class="none">${none}</li>`; return; }
+  const bottom = ol.scrollHeight - ol.scrollTop - ol.clientHeight < 40;
+  ol.innerHTML = L.map(l => `<li class="${l.level}"><span class="t">${hm(l.t)}</span><span>${esc(l.msg)}</span></li>`).join("");
+  if (bottom) ol.scrollTop = ol.scrollHeight;
+}
+
+
+// ---------------------------------------------------------------- diagrams (small, plain SVG)
+const INK = "#13202A", SUB = "#4A5966", RULE = "#CBD3DA", AMB = "#E3A008", XC = "#2F5BD3", YC = "#B5338A", OK = "#1E8E4E", BAD = "#D92B1E", GREY = "#9AA7B3";
+const skyXY = (az, el) => { const r = 100 * (90 - el) / 90, a = az * Math.PI / 180; return [r * Math.sin(a), -r * Math.cos(a)]; };
+const P2 = p => p[0].toFixed(1) + "," + p[1].toFixed(1);
+function skyBase() {
+  let h = `<circle r="100" fill="#F6F9FB" stroke="${RULE}"/>`;
+  for (const el of [30, 60]) h += `<circle r="${100 * (90 - el) / 90}" fill="none" stroke="${RULE}" stroke-dasharray="2 3"/><text x="3" y="${-100 * (90 - el) / 90 + 10}" font-size="8" fill="${SUB}">${el}°</text>`;
+  h += `<line x1="-100" x2="100" y1="0" y2="0" stroke="${RULE}"/><line x1="0" x2="0" y1="-100" y2="100" stroke="${RULE}"/>`;
+  for (const [t, a] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) { const [x, y] = skyXY(a, -10); h += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${t === "N" ? BAD : SUB}">${t}</text>`; }
+  return h;
+}
+const dish = () => { const P = S.pointing; return P && P.cal ? P : null; };       // the beam is only meaningful once north is known
+function beamMark(P) { const [x, y] = skyXY(P.az, Math.max(P.el, 0)); return `<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="${YC}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="1.8" fill="${YC}"/>`; }
+function sunSky() {
+  const U = S.sun, P = dish();
+  let h = skyBase();
+  if (U.path && U.path.length > 1) h += `<polyline fill="none" stroke="${AMB}" stroke-width="1.6" stroke-dasharray="3 3" points="${U.path.map(q => P2(skyXY(q[0], q[1]))).join(" ")}"/>`;
+  if (U.el > 0) { const [x, y] = skyXY(U.az, U.el); h += `<circle cx="${x}" cy="${y}" r="7" fill="${AMB}" stroke="#fff" stroke-width="1.5"/>`; }
+  if (P) h += beamMark(P);
+  return h;
+}
+// generic line chart: series = [{pts:[[x,y]...], color, width, dash}], bands = [[x0,x1,color]], cursor = x
+function chart(o) {
+  const W = 380, H = 220, L = 44, R = 12, T = 12, B = 34;
+  const all = o.series.flatMap(s => s.pts);
+  if (all.length < 2) return `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="${SUB}">${o.empty || "no data yet"}</text>`;
+  let x0 = Math.min(...all.map(p => p[0])), x1 = Math.max(...all.map(p => p[0])), y0 = o.y0 != null ? o.y0 : Math.min(...all.map(p => p[1])), y1 = o.y1 != null ? o.y1 : Math.max(...all.map(p => p[1]));
+  if (x1 - x0 < 1e-9) x1 = x0 + 1; if (y1 - y0 < 0.5) { const m = (y0 + y1) / 2; y0 = m - .25; y1 = m + .25; }
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => H - B - (v - y0) / (y1 - y0) * (H - B - T);
+  const ydec = (y1 - y0) < 5 ? 1 : (o.yd != null ? o.yd : 1);
+  let h = "";
+  for (const [a, b, c] of (o.bands || [])) h += `<rect x="${X(Math.max(a, x0)).toFixed(1)}" y="${T}" width="${Math.max(0, X(Math.min(b, x1)) - X(Math.max(a, x0))).toFixed(1)}" height="${H - B - T}" fill="${c}"/>`;
+  for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; h += `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${RULE}" stroke-dasharray="2 3"/><text x="${L - 5}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="${SUB}">${v.toFixed(ydec)}</text>`; }
+  h += `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="${INK}"/><line x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" stroke="${INK}"/>`;
+  for (let i = 0; i <= 3; i++) { const v = x0 + (x1 - x0) * i / 3; h += `<text x="${X(v).toFixed(1)}" y="${H - B + 14}" text-anchor="${i === 0 ? "start" : i === 3 ? "end" : "middle"}" font-size="10" fill="${SUB}">${o.xfmt ? o.xfmt(v) : v.toFixed(0)}</text>`; }
+  h += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="${SUB}">${o.xlabel || ""}</text><text transform="translate(11 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle" font-size="10" fill="${SUB}">${o.ylabel || ""}</text>`;
+  for (const s of o.series) if (s.pts.length > 1) h += `<polyline fill="none" stroke="${s.color || INK}" stroke-width="${s.width || 2}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""} stroke-linejoin="round" points="${s.pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}"/>`;
+  if (o.cursor != null && o.cursor >= x0 && o.cursor <= x1) h += `<line x1="${X(o.cursor).toFixed(1)}" x2="${X(o.cursor).toFixed(1)}" y1="${T}" y2="${H - B}" stroke="${BAD}" stroke-width="1.5"/><text x="${X(o.cursor).toFixed(1)}" y="${T + 9}" font-size="10" fill="${BAD}" text-anchor="middle">now</text>`;
+  return h;
+}
+// progress diagram: stages = [[id, label]], prog.stage = current id
+function stepper(stages, prog, skip) {
+  const cur = stages.findIndex(s => s[0] === prog.stage), st = prog.state;
+  return stages.map(([k, n], i) => {
+    let c = "";
+    if (st !== "idle" && cur >= 0) {
+      if (i < cur) c = "done";
+      else if (i === cur) c = st === "running" ? "now" : st === "done" ? "done" : st === "failed" ? "fail" : "stop";
+    }
+    if (st === "done" && cur >= 0 && i <= cur) c = "done";
+    if (skip && skip.includes(k) && c === "") c = "skip";
+    return `<li class="${c}"><i>${c === "done" ? "✓" : c === "fail" ? "✕" : i + 1}</i>${n}</li>`;
+  }).join("");
+}
+const setIn = (e, html) => { if (e.dataset.k !== html) { e.dataset.k = html; e.innerHTML = html; } };
+const setHtml = (id, html) => { const e = $(id); if (e.dataset.k !== html) { e.dataset.k = html; e.innerHTML = html; } };
+
+
+// ---------------------------------------------------------------- receive: live power, status, decoded media
+const RATES = {ops20: ["20 MBd", 9.6], linkx2: ["2 MBd", 1.9], field1: ["1 MBd", 0.5]};
+const rxOpt = {preset: "linkx2", iq: true, on: true, esn0: 12};
+try { Object.assign(rxOpt, JSON.parse(localStorage.getItem("gs-rx2") || "{}")); } catch (e) {}   // key bumped: old saved choice was ops20
+const saveRx = () => { try { localStorage.setItem("gs-rx2", JSON.stringify(rxOpt)); } catch (e) {} };
+const meterHist = [];                                          // [ms, dBFS] from the SDR power meter (about 4 per second)
+function rxCollect() {
+  if (S.sdr && S.sdr.available && S.sdr.db != null && !(S.demod && S.demod.busy && S.demod.sdr)) {
+    meterHist.push([performance.now(), S.sdr.db]);
+    while (meterHist.length && meterHist[0][0] < performance.now() - 180000) meterHist.shift();
+  }
+}
+async function uploadPic(file) {
+  if (!file) return;
+  if (file.size > 400000) { toast(`That picture is ${Math.round(file.size / 1000)} kB: pick one under 400 kB (it has to fit in the test signal)`, true); return; }
+  try {
+    const r = await fetch("/api/upload", {method: "POST", headers: {"X-Filename": encodeURIComponent(file.name)}, body: file});
+    const j = await r.json();
+    toast(j.ok ? `Picture ready: ${j.result.name}` : j.error, !j.ok);
+  } catch (e) { toast("Upload failed", true); }
+}
+function rxBuild(root, kind) {
+  root.innerHTML = `<div class="rxhead"><div class="row"><h3>Receive data</h3><span class="pill" data-r="state">idle</span></div>
+    <div class="row">${kind === "manual" ? '<button class="btn go" data-r="start">Start receiving</button><button class="btn danger" data-r="stop">Stop</button>' :
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" data-r="on"> Receive automatically while tracking</label>'}</div></div>
+    ${kind === "manual" ? `<div class="row picrow"><label class="btn ghost" style="cursor:pointer">Choose a picture to send…<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" data-r="pic" hidden></label>
+      <span class="muted small" data-r="picname"></span><button class="btn ghost" data-r="rehearse" title="Makes a recording of a fake downlink carrying your picture and decodes it: no radio needed (nothing is transmitted)">Send it through the receiver</button>
+      <button class="btn ghost" data-r="picclear" hidden>Use the built-in picture</button></div>
+      <div class="row" style="margin:2px 0 10px;gap:12px;font-size:14px;color:var(--ink-2)"><label class="row" style="gap:8px">Signal strength of the test (Es/N0)
+        <input type="range" min="-3" max="14" step="0.5" data-r="esn0" style="width:170px"> <b data-r="esn0v"></b> dB</label>
+        <span class="small">Lower = noisier. Around 1–2 dB the receiver starts losing frames. The SNR it measures should follow this setting.</span></div>` : ""}
+    <div class="rxopts"><label>Symbol rate <select data-r="preset">${Object.entries(RATES).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></label>
+      <label><input type="checkbox" data-r="iq"> Save raw IQ <span data-r="gb" class="muted"></span></label><span class="muted small" data-r="note"></span></div>
+    <div class="line" data-r="mode"></div>
+    <div class="line" data-r="hint" hidden style="color:var(--warn);font-weight:600"></div>
+    <div class="line" data-r="rh" hidden></div>
+    <div class="row" data-r="rhpics" hidden></div>
+    <div class="line bad" data-r="err" hidden></div>
+    <div class="rxstats" data-r="stats"></div>
+    <svg data-r="chart" viewBox="0 0 380 220" role="img" aria-label="Input power"></svg><div class="cap" data-r="cap"></div>
+    <div class="row" data-r="decrow" hidden><button class="btn ghost" data-r="decode">Decode last recording</button><span class="muted small" data-r="decnote"></span></div>
+    <div class="media" data-r="media"></div>`;
+  const q = n => root.querySelector(`[data-r="${n}"]`);
+  q("preset").onchange = () => { rxOpt.preset = q("preset").value; saveRx(); if (S) schedule(); };
+  q("iq").onchange = () => { rxOpt.iq = q("iq").checked; saveRx(); if (S) schedule(); };
+  if (kind === "manual") {
+    q("start").onclick = async () => { const j = await cmd({cmd: "rx_start", opts: {preset: rxOpt.preset, record: rxOpt.iq}}); if (j.ok) toast("Receiving…"); };
+    q("stop").onclick = () => cmd({cmd: "rx_stop"});
+    q("rehearse").onclick = async () => { const j = await cmd({cmd: "rehearsal_start", esn0: rxOpt.esn0}); if (j.ok) toast("Sending the picture…"); };
+    q("esn0").oninput = () => { rxOpt.esn0 = +q("esn0").value; saveRx(); q("esn0v").textContent = rxOpt.esn0.toFixed(1); };
+    q("pic").onchange = e => { uploadPic(e.target.files[0]); e.target.value = ""; };
+    q("picclear").onclick = () => cmd({cmd: "rehearsal_clear"});
+  } else q("on").onchange = () => { rxOpt.on = q("on").checked; saveRx(); };
+  q("decode").onclick = async () => {
+    const r = S.demod.recordings && S.demod.recordings[0]; if (!r) return;
+    const j = await cmd({cmd: "demod_start", opts: {mode: "file", input_file: r.path, preset: rxOpt.preset}}); if (j.ok) toast("Decoding " + r.name);
+  };
+}
+function rxRender(root, kind) {
+  const D = S.demod, q = n => root.querySelector(`[data-r="${n}"]`), C = S.components;
+  const run = D.busy, usesSdr = run && D.sdr;
+  const other = S.sun.busy || S.test.state === "running" || (kind === "manual" && S.sat && S.sat.busy);
+  const st = run ? D.state : (D.state === "done" || D.state === "failed" ? D.state : "idle");
+  q("state").className = "pill " + st; q("state").textContent = run ? (D.mode === "file" ? "decoding" : D.sdr ? "listening" : "receiving") : st;
+  const listening = run && D.sdr && D.mode !== "file";
+  q("mode").textContent = run ? (listening ? "Listening to the real radio (the SDR antenna). It decodes only a real DVB-S2 downlink: nothing is sent to it from this page."
+                                           : D.mode === "file" ? "Decoding a recording." : "Receiving a test signal from a recording (no radio).") : "";
+  const quiet = listening && !D.locked && !(D.gsse_ok > 0) && D.t0 && (Date.now() / 1000 - D.t0) > 15;
+  q("hint").hidden = !quiet;
+  q("hint").textContent = quiet ? "No signal yet (0 packets). To test the receiver with a picture, press “Send it through the receiver”: it stops this and decodes a test signal made from your picture." : "";
+  if (document.activeElement !== q("preset")) q("preset").value = rxOpt.preset;
+  q("preset").disabled = run;
+  q("iq").checked = rxOpt.preset === "ops20" ? true : rxOpt.iq; q("iq").disabled = run || rxOpt.preset === "ops20";
+  q("gb").textContent = `(≈ ${RATES[rxOpt.preset][1]} GB per minute)`;
+  q("note").textContent = rxOpt.preset === "ops20" ? "20 MBd can't be demodulated live on this laptop: it records everything and decodes 1 s in 5 live; decode the full recording afterwards."
+                                                    : "Fully live demodulation; it drops samples if the laptop can't keep up.";
+  if (kind === "manual") {
+    const rh = S.rehearsal || {};
+    q("start").disabled = run || other || !C.sdr.found || rh.busy; q("stop").disabled = !run && !rh.busy;
+    q("rehearse").disabled = rh.busy || !rh.installed;
+    q("picname").textContent = rh.image ? `Picture: ${rh.image.name} (${(rh.image.size / 1000).toFixed(0)} kB, max ${rh.max_kb} kB)` : "Picture: built-in colour bars (or choose your own)";
+    q("picclear").hidden = !rh.image || rh.busy;
+    if (document.activeElement !== q("esn0")) q("esn0").value = rxOpt.esn0;
+    q("esn0v").textContent = (+rxOpt.esn0).toFixed(1); q("esn0").disabled = rh.busy;
+  } else q("on").checked = rxOpt.on;
+  const RH = S.rehearsal || {};
+  q("rh").hidden = !(RH.busy || RH.msg);
+  q("rh").className = "line" + (RH.state === "failed" ? " bad" : "");
+  q("rh").style.color = RH.state === "done" ? "var(--ok)" : "";
+  q("rh").textContent = RH.busy ? `Test signal: ${RH.step}${RH.msg ? " — " + RH.msg : ""}` : RH.msg ? `Test signal: ${RH.msg}` : "";
+  const pics = RH.details && RH.details.name && (RH.state === "done" || RH.state === "failed")
+    ? `<figure class="pf"><img src="/api/rehearsal/original?v=${Math.round(RH.t1 || 0)}" alt=""><figcaption>Sent</figcaption></figure>` +
+      (RH.details.picture_found ? `<figure class="pf"><img src="/api/demod/file?run=${encodeURIComponent(RH.details.run)}&name=${encodeURIComponent(RH.details.name)}" alt=""><figcaption>Received · ${RH.details.picture_identical ? "identical ✓" : "different ✕"}</figcaption></figure>`
+                                      : `<figure class="pf"><div class="nopic">nothing received</div><figcaption>Received</figcaption></figure>`) : "";
+  q("rhpics").hidden = !pics; setIn(q("rhpics"), pics);
+  // why it failed (the pill alone only says "failed")
+  const why = !run && D.state === "failed" ? (D.error || D.msg || "unknown error") : "";
+  const hint = /rehearsal input/.test(why) ? " → in the simulator set GS_SIM_IQ to a real .sc16 file that exists."
+             : /No devices found|UHD|usrp/i.test(why) ? " → the receiver can't see the SDR: check the USB cable, and that no other program (or a second copy of this app) is using it."
+             : "";
+  q("err").hidden = !why; q("err").textContent = why ? "Receiving failed: " + why.replace(/^\w*Error:\s*/, "") + hint : "";
+  // status
+  const rec = D.rec || {};
+  const stat = (l, v, c) => `<div class="${c || ""}"><span>${l}</span><b>${v}</b></div>`;
+  let html = "";
+  if (run || D.state === "done" || D.state === "failed") {
+    html += stat("Input level", D.level_dbfs != null ? D.level_dbfs.toFixed(1) + " dBFS" : "–", D.peak_dbfs != null && D.peak_dbfs > -1 ? "bad" : "");
+    html += stat("Signal lock", D.locked == null ? "–" : D.locked ? "locked" : "searching", D.locked ? "ok" : "");
+    html += stat("SNR / offset", D.snr_db != null ? `${D.snr_db.toFixed(1)} dB · ${D.cfo_khz >= 0 ? "+" : ""}${(D.cfo_khz || 0).toFixed(1)} kHz` : "–");
+    html += stat("Frames · uncorrectable", `${D.plframes || 0} · ${D.bch_err || 0}`, D.bch_err ? "bad" : "");
+    html += stat("Decoded", `${D.gsse_ok || 0} packets · ${(D.files || []).length} file${(D.files || []).length === 1 ? "" : "s"}${D.gsse_bad ? " · " + D.gsse_bad + " bad" : ""}`, D.gsse_ok ? "ok" : "");
+    if (rec.on) html += stat("Raw IQ saved", `${rec.gb.toFixed(1)} GB · ${rec.free_gb} GB free`, rec.warning ? "bad" : "");
+  }
+  setIn(q("stats"), html);
+  // power chart: only while something is being received (or a test picture is being sent); afterwards the last trace stays frozen.
+  // The free-running SDR power meter is not shown here any more: it just reads the noise floor and moves all the time.
+  let pts = [], src = "";
+  if (run && D.mode !== "file" && (D.power || []).length > 1) { pts = D.power.filter(p => p[0] >= -120); src = "receiver input level, about twice a second"; }
+  else if (!run && (D.power || []).length > 1 && (D.state === "done" || D.state === "stopped")) { pts = D.power; src = "last receive (frozen)"; }
+  setIn(q("chart"), chart({series: [{pts, color: INK, width: 1.8}], xlabel: "seconds ago", ylabel: "power (dBFS)", xfmt: v => v > -0.5 ? "now" : Math.round(-v) + " s", yd: 0,
+    empty: "The power trace appears while receiving, or while a test picture is being sent."}));
+  q("cap").textContent = pts.length > 1 ? `${src} · now ${pts[pts.length - 1][1].toFixed(1)} dBFS` : "";
+  // decode the last recording
+  const recs = D.recordings || [];
+  q("decrow").hidden = !(recs.length && !run);
+  if (recs.length) { q("decode").disabled = run; q("decnote").textContent = `${recs[0].name} · ${(recs[0].size / 1e9).toFixed(2)} GB`; }
+  // media
+  const files = D.files || [];
+  const med = files.map(f => `<div class="mi"><div class="pic">${f.image ? `<a href="${f.url}" target="_blank" rel="noopener"><img src="${f.url}" alt=""></a>` : `<a href="${f.url}" target="_blank" rel="noopener">open</a>`}</div>` +
+    `<div class="m"><b>${esc(f.name)}</b><span>${(f.size / 1024).toFixed(0)} kB ${f.verdict ? `<span class="badge ${f.verdict === "PASS" ? "PASS" : f.verdict === "FAIL" ? "FAIL" : ""}">${esc(f.verdict)}</span>` : ""}</span></div></div>`).join("");
+  setIn(q("media"), med);
+}
+
+// ---------------------------------------------------------------- auto: Sun
+let autoMode = "sun";
+function setAutoMode(m) {
+  autoMode = m;
+  document.querySelectorAll("#automode button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m));
+  $("auto-sun").hidden = m !== "sun"; $("auto-sat").hidden = m !== "sat";
+  $("diag-sun").hidden = m !== "sun"; $("diag-sat").hidden = m !== "sat"; $("satlist").hidden = m !== "sat"; $("rx-sat").hidden = m !== "sat";
+  if (S) schedule();
+}
+document.querySelectorAll("#automode button").forEach(b => b.onclick = () => setAutoMode(b.dataset.m));
+function renderSun() {
+  const U = S.sun, P = U.prog, C = S.components, run = U.busy, why = U.checks_auto || [];
+  const uses = ["Sun " + U.el.toFixed(0) + "° up", C.gnss.found ? "GNSS finds north" : null, C.sdr.found ? "SDR fine-tunes" : null].filter(Boolean).join(" · ");
+  $("sunline").className = "line" + (!run && why.length ? " bad" : "");
+  $("sunline").textContent = run ? (P.step || "") : why.length ? "Can't start: " + why.join("; ") : "Ready. " + uses;
+  $("sunauto").disabled = run || why.length > 0 || S.test.state === "running" || !!(S.sat && S.sat.busy) || !!(S.demod && S.demod.busy && S.demod.sdr);
+  $("sunautostop").disabled = !run;
+  $("autobar").style.width = (P.pct || 0) + "%";
+  narr("sunnarr", P, "Press <b>Track the Sun</b>. It does everything by itself and tells you what it is doing here.");
+  setHtml("sunsteps", stepper([["motors", "Motors"], ["home", "Home"], ["north", "North"], ["point", "Point"], ["peak", "Peak-up"], ["track", "Track"]], P, C.sdr.found ? [] : ["peak"]));
+  setHtml("sunsky", sunSky());
+  $("sunskycap").textContent = dish() ? `Sun az ${U.az.toFixed(0)}° el ${U.el.toFixed(0)}° · beam az ${dish().az.toFixed(0)}° el ${dish().el.toFixed(0)}°` : `Sun az ${U.az.toFixed(0)}° el ${U.el.toFixed(0)}° · beam shown once north is known`;
+  const pl = P.plot || {};
+  const ys = (pl.pts || []).map(q => q[1]);
+  $("sunpowt").textContent = pl.title ? "Radio power: " + pl.title : "Radio power from the SDR";
+  setHtml("sunpow", chart({series: [{pts: pl.pts || [], color: INK, width: 1.6}, {pts: pl.fit || [], color: YC, width: 2}], xlabel: pl.xlabel || "", ylabel: "dBFS",
+    empty: C.sdr.found ? "readings appear while peaking up and tracking" : "no SDR: no power readings"}));
+  $("sunpowcap").textContent = !C.sdr.found ? "Connect the SDR to fine-tune on the Sun." : ys.length ? `now ${ys[ys.length - 1].toFixed(1)} dBFS · peak-up looks for a rise when the beam is on the Sun` : "";
+  const x = S.gimbal.axes.x.angle, y = S.gimbal.axes.y.angle, h = P.heat;
+  $("sunlive").textContent = `Sun az ${U.az.toFixed(1)}°, el ${U.el.toFixed(1)}°` + (x != null ? `  ·  dish X ${sg(x, 1)}°, Y ${sg(y, 1)}°` : "") +
+    (h && h.near ? `  ·  on the Sun ${h.near_s.toFixed(0)} / ${h.limit_s.toFixed(0)} s` : "") +
+    (P.state === "done" || P.state === "failed" || P.state === "aborted" ? `  ·  ${P.state}${P.msg ? ": " + P.msg : ""}` : "");
+}
+$("sunauto").onclick = () => confirmThen("Track the Sun",
+  "This starts the motors, sends the dish to HOME, finds true north, points at the Sun and follows it. The dish will move.", "Track the Sun",
+  async () => { const j = await cmd({cmd: "sun_auto", confirm: true}); if (j.ok) toast("Sun tracking started"); });
+$("sunautostop").onclick = () => stopAll("Stop button");
+
+// ---------------------------------------------------------------- auto: satellite (kept simple for now)
+let satOpts = "", satSel = null;
+function renderSat() {
+  const A = S.sat, C = S.components, run = A.busy;
+  const opts = '<option value="">Auto: next trackable pass</option>' + (A.targets || []).map(t => `<option value="${t.catnr}">${esc(t.name)}</option>`).join("");
+  if (opts !== satOpts) { const v = $("satsel").value; $("satsel").innerHTML = opts; $("satsel").value = v; satOpts = opts; }
+  const why = [];
+  if (!C.gimbal.found) why.push("gimbal not detected");
+  if (!C.gnss.found && !S.mount) why.push("true north unknown (needs the GNSS)");
+  if (A.state === "unavailable") why.push(A.msg);
+  $("satline").className = "line" + (!run && why.length ? " bad" : "");
+  $("satline").textContent = run ? (A.step || "") : why.length ? "Can't start: " + why.join("; ") : "Ready.";
+  $("satgo").disabled = run || why.length > 0 || S.sun.busy || S.test.state === "running";
+  $("satstop").disabled = !run;
+  narr("satnarr", A, "Press <b>Track</b>.");
+  setHtml("satsteps", stepper([["north", "North"], ["pick", "Pass"], ["elements", "Orbit"], ["motors", "Motors"], ["path", "Path"], ["slew", "Slew"], ["wait", "Wait"], ["track", "Track"], ["park", "Park"]], A, []));
+  const want = $("satsel").value;
+  const list = (A.passes || []).filter(p => !want || String(p.catnr) === want).slice(0, 6);
+  const key = p => p.catnr + "|" + p.rise;
+  const auto = list.find(p => p.reachable);
+  const shown = list.find(p => key(p) === satSel) || auto || list[0];
+  const rows = list.map(p => `<tr class="pk ${p.reachable ? "" : "no"} ${shown && key(p) === key(shown) ? "sel" : ""}" data-k="${esc(key(p))}"><td>${hm2(p.rise)}–${hm2(p.set)}${p.now ? " (now)" : ""}</td><td>${esc(p.name)}</td><td>${p.max_el.toFixed(0)}°</td>` +
+    `<td>${!p.reachable ? "no" : p.frac >= 0.98 ? "all" : Math.round(p.frac * 100) + "%"}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">no passes in the next 24 h</td></tr>`;
+  setHtml("satrows", rows);
+  // diagrams: the active pass while tracking, otherwise the selected one
+  const live = run && A.track && A.track.length;
+  const sky = live ? A.track.map(q => [q[0], q[1], 1]) : (shown && shown.sky) || null;
+  const t0 = live ? Date.parse(A.track_t0) : shown && shown.sky_t0 ? Date.parse(shown.sky_t0) : null, dt = live ? 10 : (shown && shown.sky_dt) || 10;
+  let h = skyBase();
+  if (sky && sky.length > 1) {
+    let seg = [], okc = null;
+    const flush = () => { if (seg.length > 1) h += `<polyline fill="none" stroke="${okc ? XC : GREY}" stroke-width="${okc ? 3 : 1.6}" ${okc ? "" : 'stroke-dasharray="4 3"'} stroke-linejoin="round" points="${seg.join(" ")}"/>`; };
+    sky.forEach(q => { const pt = P2(skyXY(q[0], q[1])); if (okc !== null && !!q[2] !== okc) { seg.push(pt); flush(); seg = []; } okc = !!q[2]; seg.push(pt); });
+    flush();
+    const f = skyXY(sky[0][0], sky[0][1]), l = skyXY(sky[sky.length - 1][0], sky[sky.length - 1][1]);
+    h += `<circle cx="${f[0]}" cy="${f[1]}" r="5" fill="${OK}" stroke="#fff" stroke-width="1.5"/><circle cx="${l[0]}" cy="${l[1]}" r="5" fill="${BAD}" stroke="#fff" stroke-width="1.5"/>`;
+  }
+  if (run && A.az != null) { const [x, y] = skyXY(A.az, A.el); h += `<circle cx="${x}" cy="${y}" r="6" fill="${XC}" stroke="#fff" stroke-width="2"/>`; }
+  if (dish()) h += beamMark(dish());
+  setHtml("satsky", h);
+  $("satskycap").textContent = shown ? `${shown.name} · ${hm2(shown.rise)}–${hm2(shown.set)} · max ${shown.max_el.toFixed(0)}°` : "no pass selected";
+  // elevation vs time, reachable part shaded
+  const ser = [], bands = [];
+  if (sky && t0 != null) {
+    let curSeg = null;
+    sky.forEach((q, i) => {
+      const x = i * dt / 60;
+      if (!curSeg || !!q[2] !== curSeg.ok) { curSeg = {ok: !!q[2], pts: []}; if (i > 0) curSeg.pts.push([(i - 1) * dt / 60, sky[i - 1][1]]); ser.push(curSeg); }
+      curSeg.pts.push([x, q[1]]);
+    });
+    let b0 = null;
+    sky.forEach((q, i) => { const x = i * dt / 60; if (q[2] && b0 === null) b0 = x; if ((!q[2] || i === sky.length - 1) && b0 !== null) { bands.push([b0, x, "rgba(47,91,211,.10)"]); b0 = null; } });
+  }
+  const nowMin = t0 != null && S.now ? (Date.parse(S.now) - t0) / 60000 : null;
+  setHtml("satel", chart({series: ser.map(g => ({pts: g.pts, color: g.ok ? XC : GREY, width: g.ok ? 2.6 : 1.5, dash: g.ok ? "" : "4 3"})), bands, y0: 0, y1: 90, yd: 0, xlabel: t0 != null ? "time (local, HH:MM)" : "",
+    ylabel: "elevation (°)", xfmt: v => t0 == null ? "" : hm2(new Date(t0 + v * 60000).toISOString()), cursor: nowMin, empty: "pick a pass"}));
+  $("satelcap").textContent = shown && shown.reachable ? (shown.frac >= 0.98 ? "The dish can follow the whole pass." : `The dish can follow ${Math.round(shown.frac * 100)}% of this pass (shaded).`) : shown ? "The dish can't follow this pass." : "";
+}
+$("satsel").onchange = () => { satSel = null; if (S) schedule(); };
+$("satrows").onclick = e => { const tr = e.target.closest("tr.pk"); if (!tr) return; satSel = tr.dataset.k; $("satsel").value = satSel.split("|")[0]; if (S) schedule(); };
+$("satgo").onclick = () => confirmThen("Track a satellite",
+  "This starts the motors, finds north, slews to the rise point and follows the pass. The dish will move.", "Track",
+  async () => { const j = await cmd({cmd: "sat_start", confirm: true, catnr: $("satsel").value || null, rx: rxOpt.on ? {preset: rxOpt.preset, record: rxOpt.iq} : null}); if (j.ok) toast("Satellite tracking started"); });
+$("satstop").onclick = () => stopAll("Stop button");
+
+// ---------------------------------------------------------------- test
+const TESTS = [
+  {id: "link",   name: "Gimbal link",      comp: ["gimbal"], moves: false},
+  {id: "motors", name: "Motors",           comp: ["gimbal"], moves: true},
+  {id: "sdr",    name: "SDR",              comp: ["sdr"],    moves: false},
+  {id: "gnss",   name: "GNSS heading",     comp: ["gnss"],   moves: false},
+  {id: "north",  name: "Point at north",   comp: ["gimbal", "gnss"], moves: true},
+];
+let testHtml = "";
+function renderTest() {
+  const T = S.test, C = S.components, running = T.state === "running";
+  const avail = t => t.comp.every(k => C[k].found);
+  const other = S.sun.busy || (S.sat && S.sat.busy);
+  $("testall").disabled = running || other || !TESTS.some(avail);
+  $("testabort").disabled = !running;
+  const html = TESTS.map(t => {
+    const st = T.steps.find(s => s.id === t.id) || {state: "idle", detail: ""};
+    const ok = avail(t);
+    const miss = t.comp.filter(k => !C[k].found).map(k => k);
+    const det = ok ? `<span class="det ok"><i></i>${t.comp.map(k => esc(C[k].detail)).join(" · ")}</span>`
+                   : `<span class="det no"><i></i>${miss.join(", ")} not found</span>`;
+    const cls = {pass: "pass", fail: "fail", warn: "warn", running: "running"}[st.state] || "";
+    const label = {pending: "waiting…", running: "running: " + (st.detail || ""), idle: ""}[st.state];
+    const res = label !== undefined ? label : (({pass: "✓ ", warn: "! ", fail: "✕ ", skip: "– "}[st.state] || "") + (st.detail || ""));
+    const done = ["pass", "warn", "fail"].includes(st.state);
+    return `<tr><td class="nm">${esc(t.name)}${t.moves ? '<span class="mv">moves the dish</span>' : ""}</td><td>${det}</td>` +
+      `<td><button class="btn ghost" data-run="${t.id}" ${!ok || running || other ? "disabled" : ""}>${done ? "Run again" : "Run"}</button></td>` +
+      `<td class="res ${cls}">${esc(res)}</td></tr>`;
+  }).join("");
+  const RH = S.rehearsal || {}, rcls = RH.state === "done" ? "pass" : RH.state === "failed" ? "fail" : RH.busy ? "running" : "";
+  const fin = RH.details && RH.details.name && (RH.state === "done" || RH.state === "failed");
+  const thumbs = fin ? `<div class="row" style="gap:10px;margin-top:8px"><figure class="pf"><img style="max-width:110px;max-height:80px" src="/api/rehearsal/original?v=${Math.round(RH.t1 || 0)}" alt=""><figcaption>Sent</figcaption></figure>` +
+    (RH.details.picture_found ? `<figure class="pf"><img style="max-width:110px;max-height:80px" src="/api/demod/file?run=${encodeURIComponent(RH.details.run)}&name=${encodeURIComponent(RH.details.name)}" alt=""><figcaption>Received${RH.details.picture_identical ? " ✓" : " ✕"}</figcaption></figure>` : "") + "</div>" : "";
+  const rrow = `<tr><td class="nm">Receiver chain<span class="mv" style="color:var(--ink-3)">no radio needed · sends a picture to itself</span></td>` +
+    `<td><span class="det ${RH.installed ? "ok" : "no"}"><i></i>${RH.installed ? "receiver software installed" : esc(RH.why_not || "not installed")}</span></td>` +
+    `<td><label class="btn ghost fileb">${RH.image ? "Change picture" : "Choose picture"}<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" data-pic="1" hidden></label> ` +
+    `<label class="muted small" title="Es/N0 of the test signal: lower is noisier">strength <input type="number" data-esn0="1" step="0.5" min="-3" max="14" value="${rxOpt.esn0}" style="width:64px;padding:6px;border:2px solid var(--rule);border-radius:8px"> dB</label> ` +
+    `<button class="btn ghost" data-rh="1" ${!RH.installed || RH.busy ? "disabled" : ""}>${RH.state === "done" || RH.state === "failed" ? "Send again" : "Send"}</button></td>` +
+    `<td class="res ${rcls}">${esc(RH.busy ? `running: ${RH.step}` : RH.msg || (RH.image ? `ready to send ${RH.image.name}` : "choose a picture (or send the built-in one), it is decoded and compared"))}${thumbs}</td></tr>`;
+  const full = html + rrow;
+  if (full !== testHtml) { testHtml = full; $("testrows").innerHTML = full; }
+}
+function runTests(only) {
+  const moves = only.some(i => TESTS.find(t => t.id === i).moves);
+  const go = async () => { const j = await cmd({cmd: "test_start", only, confirm: moves}); if (j.ok) { testHtml = ""; toast("Started"); } };
+  if (!moves) return go();
+  confirmThen("The dish will move", "This check starts the motors if they are off and moves the dish" +
+    (only.includes("north") ? ", ending by pointing at true north." : " ±5° on each axis and back to HOME."), "Run", go);
+}
+$("testrows").onchange = e => {
+  const i = e.target.closest("input[data-pic]"); if (i) { uploadPic(i.files[0]); i.value = ""; return; }
+  const n = e.target.closest("input[data-esn0]"); if (n) { const v = parseFloat(n.value); if (!isNaN(v)) { rxOpt.esn0 = Math.max(-3, Math.min(14, v)); saveRx(); } }
+};
+$("testrows").onclick = e => {
+  const r = e.target.closest("button[data-rh]"); if (r && !r.disabled) { cmd({cmd: "rehearsal_start", esn0: rxOpt.esn0}).then(j => { if (j.ok) toast("Making a test signal…"); }); return; }
+  const b = e.target.closest("button[data-run]"); if (b && !b.disabled) runTests([b.dataset.run]);
+};
+$("testall").onclick = () => runTests(TESTS.filter(t => t.comp.every(k => S.components[k].found)).map(t => t.id));
+$("testabort").onclick = () => cmd({cmd: "test_abort", why: "Abort test button"});
+
+// ---------------------------------------------------------------- header, banner, log
+function renderChrome() {
+  const C = S.components, g = S.gimbal, gn = S.gnss;
+  const items = [
+    [C.gimbal.found ? (g.started && g.mode === "on" ? "ok" : "warn") : "bad", "Gimbal", C.gimbal.found ? (g.started ? "motors on" : "motors off") : "not found", C.gimbal.detail],
+    [gn.chip === "RTK FIXED" ? "ok" : gn.connected ? "warn" : "bad", "GNSS", gn.chip, C.gnss.detail],
+    S.demod && S.demod.busy && S.demod.sdr ? ["ok", "SDR", "receiving", C.sdr.detail] :
+      [S.sdr.available ? (S.sdr.sat ? "warn" : "ok") : "bad", "SDR", S.sdr.available ? (S.sdr.sat ? "saturated" : "ready") : "not found", C.sdr.detail],
+  ];
+  const html = items.map(([lv, n, v, tip]) => `<span class="chip" title="${esc(tip || "")}"><i class="dot ${lv}"></i><span>${n}: ${esc(v)}</span></span>`).join("") + (S.sim ? '<span class="chip"><span>Simulator</span></span>' : "");
+  if ($("status").dataset.k !== html) { $("status").dataset.k = html; $("status").innerHTML = html; }
+  const errs = [];
+  if (g.fault) errs.push(g.fault);
+  if (S.sdr.sat) errs.push("SDR saturated: reduce gain");
+  if (!linkOk) errs.push("no connection to the app");
+  $("banner").textContent = errs.join(" · "); $("banner").classList.toggle("on", errs.length > 0);
+  const lg = S.events.slice().reverse().slice(0, 8).map(e => `<div class="${e.level}"><span>${hm(e.t)}</span><span>${esc(e.msg)}</span></div>`).join("");
+  if ($("log").dataset.k !== lg) { $("log").dataset.k = lg; $("log").innerHTML = lg; }
+}
+
+// ---------------------------------------------------------------- render (at most once per animation frame)
+function render() {
+  if (!S) return;
+  renderChrome();
+  if (tab === "manual") { renderManual(); rxRender($("rx-manual"), "manual"); }
+  if (tab === "auto") { if (autoMode === "sun") renderSun(); else { renderSat(); rxRender($("rx-sat"), "sat"); } }
+  if (tab === "test") renderTest();
+}
+let rafPending = false;
+function schedule() {
+  if (rafPending || document.hidden) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; render(); });
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(); });
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onopen = () => { linkOk = true; };
+  es.onmessage = e => { linkOk = true; S = JSON.parse(e.data); window.GS = S; rxCollect(); schedule(); };
+  es.onerror = () => { es.close(); linkOk = false; if (S) schedule(); setTimeout(connect, 1500); };
+}
+if (location.hash === "#auto-sat") { tab = "auto"; setAutoMode("sat"); }
+rxBuild($("rx-manual"), "manual"); rxBuild($("rx-sat"), "sat");
+setTab(tab);
+connect();
+})();
+</script>
+<script type="module" src="/viewer.js"></script>
+</body>
+</html>

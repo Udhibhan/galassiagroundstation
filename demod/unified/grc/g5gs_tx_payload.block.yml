@@ -1,0 +1,86 @@
+id: g5gs_tx_payload
+label: G5 TX Payload
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: mode
+  label: Payload (gsse / bbframes / gse_tap0)
+  dtype: string
+  default: gsse
+- id: files
+  label: File or folder to send
+  dtype: string
+  default: ''
+- id: stack
+  label: Stack (rev1.0 / rev1.2 / udpraw)
+  dtype: string
+  default: rev1.0
+- id: chunk_size
+  label: GSUFTP chunk (0 = default)
+  dtype: int
+  default: '0'
+- id: repeat
+  label: Passes (0 = loop forever)
+  dtype: int
+  default: '0'
+- id: flush
+  label: Empty BBFRAMEs at the end
+  dtype: int
+  default: '100'
+- id: bbframe_file
+  label: BBFRAME file (bbframes mode)
+  dtype: string
+  default: ''
+- id: frame_len
+  label: BBFRAME length (B)
+  dtype: int
+  default: '2001'
+- id: modcod
+  label: MODCOD (gse_tap0)
+  dtype: string
+  default: QPSK1/4
+  hide: part
+- id: frame_size
+  label: Frame size (gse_tap0)
+  dtype: string
+  default: normal
+  hide: part
+- id: isi
+  label: ISI
+  dtype: int
+  default: '0'
+  hide: part
+- id: sis
+  label: Single input stream
+  dtype: bool
+  default: 'False'
+  hide: part
+- id: enabled
+  label: Enabled (False when replaying)
+  dtype: bool
+  default: 'True'
+  hide: part
+- id: gse_src_ip
+  label: gse_tap0 source IP
+  dtype: string
+  default: 44.0.0.3
+  hide: part
+- id: gse_dst_ip
+  label: gse_tap0 destination IP
+  dtype: string
+  default: 10.0.1.190
+  hide: part
+outputs:
+- domain: stream
+  dtype: byte
+templates:
+  imports: import g5gs
+  make: g5gs.tx_payload(mode=${mode}, files=${files}, stack=${stack}, chunk_size=${chunk_size}, repeat=${repeat},
+    flush=${flush}, bbframe_file=${bbframe_file}, frame_len=${frame_len}, modcod=${modcod}, frame_size=${frame_size},
+    isi=${isi}, sis=${sis}, enabled=${enabled}, gse_src_ip=${gse_src_ip}, gse_dst_ip=${gse_dst_ip})
+documentation: 'Bits for the DVB-S2 encoder: files as Link X/SX GSSE (+GSUFTP), a BBFRAME file, or the
+  old
+
+  gr-dvbgse standard GSE from tap0 (g5gs/tx.py).'
+file_format: 1

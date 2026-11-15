@@ -1,0 +1,52 @@
+id: g5gs_dvbs2_tx
+label: G5 DVB-S2 TX (gr-dtv + dummies + RRC)
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: modcod
+  label: MODCOD
+  dtype: string
+  default: QPSK1/4
+- id: frame_size
+  label: Frame size
+  dtype: string
+  default: normal
+- id: sps
+  label: Samples per symbol
+  dtype: int
+  default: '2'
+- id: rolloff
+  label: Roll-off
+  dtype: real
+  default: '0.2'
+- id: lead
+  label: Dummy PLFRAMEs before the data
+  dtype: int
+  default: '200'
+- id: gap
+  label: Dummy PLFRAMEs after each data frame
+  dtype: int
+  default: '0'
+- id: gold_code
+  label: Gold code
+  dtype: int
+  default: '0'
+  hide: part
+inputs:
+- domain: stream
+  dtype: byte
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.dvbs2_tx(modcod=${modcod}, frame_size=${frame_size}, sps=${sps}, rolloff=${rolloff}, lead=${lead},
+    gap=${gap}, gold_code=${gold_code})
+documentation: 'gr-dtv BBscrambler, BCH, LDPC, interleaver, modulator, PL framer (pilots on), then Link
+  X
+
+  dummy PLFRAMEs and the RRC at sps. One hier block because the gr-dtv GRC blocks only take
+
+  the MODCOD as fixed enums.'
+file_format: 1

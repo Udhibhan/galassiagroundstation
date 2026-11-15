@@ -1,0 +1,33 @@
+# Site-specific / generated at runtime
+calibration.json
+omm_cache.json
+logs/
+test_results/
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Large recordings and RF captures (kept on the laptop, not in git)
+Received/
+
+# Old copies and backups
+_archive/
+*.bak
+*.bak[0-9]*
+*.bak_*
+
+# Bundles, report and submission (not software)
+*.zip
+urex_report/
+UREx_submission/
+
+# Current-characterisation data: keep only the runs used in the final result
+data/current_char/*
+!data/current_char/20261114_192721/
+!data/current_char/20261114_194244/
+!data/current_char/20261114_201825/
+!data/current_char/20261114_202836/
+!data/current_char/20261114_combined/

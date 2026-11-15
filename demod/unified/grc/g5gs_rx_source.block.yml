@@ -1,0 +1,122 @@
+id: g5gs_rx_source
+label: G5 RX Source
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: mode
+  label: Mode (record / live / file)
+  dtype: string
+  default: record
+- id: samp_rate
+  label: Sample rate
+  dtype: real
+  default: 40e6
+- id: sym_rate
+  label: Symbol rate
+  dtype: real
+  default: 20e6
+- id: input_file
+  label: Input file (file mode)
+  dtype: file_open
+  default: ''
+- id: input_format
+  label: Input format (auto / sc16 / fc32)
+  dtype: string
+  default: auto
+- id: realtime
+  label: 'File: real time'
+  dtype: bool
+  default: 'False'
+  hide: part
+- id: need_time
+  label: 'File: put rx_time tags back'
+  dtype: bool
+  default: 'False'
+  hide: part
+- id: start_utc
+  label: 'File: first-sample UTC override'
+  dtype: string
+  default: ''
+  hide: part
+- id: centre_freq
+  label: Centre frequency
+  dtype: real
+  default: 1195e6
+  category: Radio
+- id: rx_gain
+  label: RX gain (dB)
+  dtype: real
+  default: '30'
+  category: Radio
+- id: device_args
+  label: UHD device args
+  dtype: string
+  default: ''
+  category: Radio
+- id: lo_offset
+  label: LO offset (-1 = auto)
+  dtype: real
+  default: '-1'
+  hide: part
+  category: Radio
+- id: record
+  label: Recording on
+  dtype: bool
+  default: 'True'
+  category: Recording
+- id: rec_dir
+  label: Recording folder
+  dtype: string
+  default: .
+  category: Recording
+- id: rec_prefix
+  label: Recording file prefix
+  dtype: string
+  default: rx
+  category: Recording
+- id: min_free
+  label: Stop when this little is free (B)
+  dtype: real
+  default: 2 * 2**30
+  hide: part
+  category: Recording
+- id: meta
+  label: Extra JSON metadata (dict)
+  dtype: raw
+  default: '{}'
+  hide: part
+  category: Recording
+- id: conj
+  label: Conjugate (inverted spectrum)
+  dtype: bool
+  default: 'False'
+- id: sim_input
+  label: 'Rehearsal: sc16 file instead of the radio'
+  dtype: string
+  default: ''
+  hide: part
+- id: antenna
+  label: RX port (RX2 / TX/RX)
+  dtype: string
+  default: RX2
+  category: Radio
+outputs:
+- domain: stream
+  dtype: complex
+templates:
+  imports: import g5gs
+  make: g5gs.rx_source(mode=${mode}, samp_rate=${samp_rate}, sym_rate=${sym_rate}, input_file=${input_file},
+    input_format=${input_format}, realtime=${realtime}, need_time=${need_time}, start_utc=${start_utc},
+    centre_freq=${centre_freq}, rx_gain=${rx_gain}, device_args=${device_args}, lo_offset=${lo_offset},
+    record=${record}, rec_dir=${rec_dir}, rec_prefix=${rec_prefix}, min_free=${min_free}, meta=${meta},
+    conj=${conj}, sim_input=${sim_input}, antenna=${antenna})
+  callbacks:
+  - set_rx_gain(${rx_gain})
+  - set_recording(${record})
+  - set_antenna(${antenna})
+documentation: "B205mini or IQ file input (g5gs/rx_source.py).\nrecord: full-rate sc16 recording (with\
+  \ .start / .json sidecars, stops at 2 GB free) + complex\n        output for monitoring.  live: the\
+  \ same, recording off by default.\nfile:   sc16 / fc32 file, as fast as the CPU allows (or real time).\n\
+  Rehearsal: an sc16 file looped in real time instead of the radio."
+file_format: 1

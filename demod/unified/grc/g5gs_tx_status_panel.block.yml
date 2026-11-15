@@ -1,0 +1,29 @@
+id: g5gs_tx_status_panel
+label: G5 TX Status Panel
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: ids
+  label: Block ids {payload, framer, imp, sink}
+  dtype: raw
+  default: '{}'
+- id: cfg_text
+  label: Settings text
+  dtype: string
+  default: ''
+- id: active
+  label: Active at start
+  dtype: bool
+  default: 'True'
+  hide: part
+- id: gui_hint
+  label: GUI Hint
+  dtype: gui_hint
+  hide: part
+templates:
+  imports: import g5gs
+  make: "<%\n    win = 'self._%s_win'%id\n%>\\\ng5gs.TxStatusPanel(self, ids=${ids}, cfg_text=${cfg_text},\
+    \ active=${active})\n${win} = self.${id}\n${gui_hint() % win}"
+documentation: Payload progress, PLFRAME counts, impairments, Doppler, output.
+file_format: 1

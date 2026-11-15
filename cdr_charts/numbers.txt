@@ -1,0 +1,25 @@
+SDR noise floor parked at HOME (n=1468 x 0.1 s): mean -41.78 dBFS, sigma 0.014 dB per 0.1 s sample, 0.010 dB per 1 s average
+Ring scan 20261111_091047: n=324, max rise +0.108 dB, span -12.3..+12.0 deg
+Ring scan 20261111_094100: n=570, max rise +0.185 dB, span -12.0..+11.9 deg
+Ring scan 20261111_095654: n=516, max rise +0.170 dB, span -12.0..+11.9 deg
+Ring scan 20261111_100154: n=525, max rise +0.125 dB, span -12.0..+11.9 deg
+Ring scan 20261111_110037: n=759, max rise +0.067 dB, span -12.0..+12.1 deg
+Ring scan 20261111_111900: n=355, max rise +0.034 dB, span -12.0..+11.8 deg
+Sim ring scan 20261111_103150: max rise +8.22 dB (SIMULATED SDR)
+Cloudy run 03:19 UTC: total power range 0.13 dB over whole run
+Sun track servo error: n=599, mean 0.015, p95 0.023, max 0.026 deg
+DS-EO logged gimbal-vs-predicted separation (sampled): 03:22:00=112.0deg, 03:22:06=114.7deg, 03:22:12=116.4deg, 03:22:18=116.8deg, 03:22:24=116.5deg, 03:22:30=116.7deg, 03:22:36=114.4deg, 03:22:42=113.3deg, 03:22:48=112.4deg, 03:22:54=111.4deg, 03:23:00=110.6deg, 03:23:06=109.5deg, 03:23:12=108.6deg, 03:23:18=107.7deg, 03:23:24=106.8deg, 03:23:30=105.8deg, 03:23:36=105.5deg, 03:23:42=107.7deg, 03:23:48=107.3deg, 03:23:54=107.0deg, 03:24:00=106.6deg, 03:24:06=106.2deg, 03:24:12=105.9deg, 03:24:18=105.5deg, 03:24:24=105.1deg, 03:24:30=104.6deg, 03:24:36=104.2deg, 03:24:42=104.4deg, 03:24:48=106.4deg, 03:24:54=105.7deg, 03:25:01=101.2deg, 03:25:07=93.7deg, 03:25:13=86.1deg, 03:25:19=79.4deg, 03:25:25=72.8deg, 03:25:31=66.1deg, 03:25:37=59.4deg, 03:25:43=52.8deg, 03:25:49=46.1deg, 03:25:55=39.6deg, 03:26:01=33.1deg, 03:26:07=26.8deg, 03:26:13=21.0deg, 03:26:19=16.2deg, 03:26:25=13.5deg, 03:26:31=14.3deg, 03:26:37=18.1deg, 03:29:11=3.6deg, 03:29:17=6.1deg, 03:29:23=8.5deg, 03:29:29=10.8deg, 03:29:35=12.9deg, 03:29:41=15.0deg, 03:29:47=17.0deg, 03:29:53=19.0deg, 03:29:59=20.8deg, 03:30:05=22.5deg, 03:30:11=24.2deg, 03:30:17=25.8deg, 03:30:23=27.3deg, 03:30:29=28.8deg, 03:30:35=30.2deg, 03:30:41=31.5deg, 03:30:47=32.8deg, 03:30:53=34.0deg, 03:30:59=35.1deg, 03:31:05=36.3deg, 03:31:11=37.3deg, 03:31:17=38.4deg, 03:31:23=39.3deg, 03:31:29=42.2deg, 03:31:35=47.8deg, 03:31:41=54.7deg, 03:31:47=60.0deg, 03:31:53=62.8deg, 03:31:59=65.5deg, 03:32:05=68.0deg, 03:32:11=68.9deg, 03:32:17=69.5deg, 03:32:23=69.9deg, 03:32:29=72.3deg, 03:32:35=74.2deg, 03:32:41=74.7deg, 03:32:47=75.2deg, 03:32:53=75.7deg, 03:32:59=76.2deg, 03:33:05=76.7deg, 03:33:11=77.1deg, 03:33:17=77.5deg, 03:33:23=78.0deg, 03:33:30=78.4deg, 03:33:36=79.0deg, 03:33:42=80.6deg, 03:33:48=80.9deg, 03:33:54=81.3deg, 03:34:00=81.7deg, 03:34:06=82.0deg, 03:34:12=82.3deg, 03:34:18=81.2deg, 03:34:24=79.7deg
+PSD g5_20261111T033756Z.sc16 @30s: in-band (|f|<1 MHz) minus edge (|f|>3 MHz) = 22.6 dB
+PSD g5_20261111T032646Z.sc16 @70s: in-band (|f|<1 MHz) minus edge (|f|>3 MHz) = 2.6 dB
+Peak 20261111_084452: -69.14 dBFS, +0.05 dB over median, during 'Going to HOME', X -5.02 Y -59.09, beam 53.7 deg from Sun, sat=0
+Peak 20261111_091047: -41.36 dBFS, +0.20 dB over median, during 'Going to HOME', X +17.87 Y -35.84, beam 68.5 deg from Sun, sat=0
+Peak 20261111_094100: -41.25 dBFS, +0.28 dB over median, during 'ring scan 1/3: az ±12°, el +0.0°', X +5.49 Y -41.67, beam 9.0 deg from Sun, sat=0
+Peak 20261111_095654: -41.25 dBFS, +0.22 dB over median, during 'ring scan 2/3: az ±12°, el +1.2°', X +1.12 Y -39.38, beam 8.6 deg from Sun, sat=0
+Peak 20261111_100154: -41.31 dBFS, +0.20 dB over median, during 'ring scan 3/3: az ±12°, el -1.2°', X +1.21 Y -39.99, beam 8.3 deg from Sun, sat=0
+Peak 20261111_103009 SIM: -33.15 dBFS, +8.84 dB over median, during 'go to the predicted Sun', X -7.25 Y +36.50, beam 0.4 deg from Sun, sat=0
+Peak 20261111_103142 SIM: -33.03 dBFS, +8.94 dB over median, during 'cross-scan Y ±3°', X -7.48 Y +35.62, beam 0.6 deg from Sun, sat=0
+Peak 20261111_103150 SIM: -32.97 dBFS, +9.00 dB over median, during 'cross-scan X ±1.5°', X -7.25 Y +35.10, beam 0.5 deg from Sun, sat=0
+Peak 20261111_103322 SIM: -41.94 dBFS, +0.06 dB over median, during 'GNSS heading average', X +0.30 Y -0.20, beam 33.6 deg from Sun, sat=0
+Peak 20261111_103805 SIM: -41.95 dBFS, +0.05 dB over median, during 'GNSS heading average', X +0.00 Y +0.00, beam 30.9 deg from Sun, sat=0
+Peak 20261111_110037: -37.87 dBFS, +3.91 dB over median, during 'Starting the motors', X +0.32 Y -64.10, beam 93.4 deg from Sun, sat=0
+Peak 20261111_111900: -41.74 dBFS, +0.08 dB over median, during 'go to the predicted Sun', X -37.75 Y +16.36, beam 9.3 deg from Sun, sat=0

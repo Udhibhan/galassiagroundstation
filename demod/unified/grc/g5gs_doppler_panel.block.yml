@@ -1,0 +1,29 @@
+id: g5gs_doppler_panel
+label: G5 Doppler / Pass Panel
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: sym_rate
+  label: Symbol rate
+  dtype: real
+  default: 20e6
+- id: history_s
+  label: Plot history (s)
+  dtype: real
+  default: '600'
+- id: active
+  label: Active at start
+  dtype: bool
+  default: 'True'
+  hide: part
+- id: gui_hint
+  label: GUI Hint
+  dtype: gui_hint
+  hide: part
+templates:
+  imports: import g5gs
+  make: "<%\n    win = 'self._%s_win'%id\n%>\\\ng5gs.DopplerPanel(self, sym_rate=${sym_rate}, history_s=${history_s},\
+    \ active=${active})\n${win} = self.${id}\n${gui_hint() % win}"
+documentation: TLE, sample time, elevation / azimuth / range, predicted Doppler vs residual CFO, passes.
+file_format: 1

@@ -1,0 +1,36 @@
+id: g5gs_rx_status_panel
+label: G5 RX Status Panel
+category: '[G5 Ground Station]'
+flags:
+- python
+parameters:
+- id: sym_rate
+  label: Symbol rate
+  dtype: real
+  default: 20e6
+- id: cfg_text
+  label: Settings text
+  dtype: string
+  default: ''
+- id: dummy_frames
+  label: Dummy frames on
+  dtype: bool
+  default: 'True'
+- id: active
+  label: Active at start
+  dtype: bool
+  default: 'True'
+  hide: part
+- id: gui_hint
+  label: GUI Hint
+  dtype: gui_hint
+  hide: part
+templates:
+  imports: import g5gs
+  make: "<%\n    win = 'self._%s_win'%id\n%>\\\ng5gs.RxStatusPanel(self, sym_rate=${sym_rate}, cfg_text=${cfg_text},\
+    \ dummy_frames=${dummy_frames}, active=${active})\n${win} = self.${id}\n${gui_hint() % win}"
+documentation: 'Input / recording / disk / level / overflow / duty gate / lock / CFO / SNR / frames /
+  BCH /
+
+  GSSE. Finds the blocks by their default GRC ids (g5gs/probe.py IDS).'
+file_format: 1
